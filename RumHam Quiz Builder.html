@@ -1,0 +1,36 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RumHam Quiz Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>body{margin:0;padding:24px;background:#1a1400;color:#fff8e0;font-family:Arial,sans-serif}.box{max-width:560px;margin:auto;background:#221c00;border:1px solid #4a3c00;border-radius:14px;padding:24px}h1{margin:0 0 4px;color:#f5c800}p{color:#a89a60;font-size:14px;margin:0 0 18px}label{display:block;font-weight:700;margin:16px 0 6px;font-size:13px;text-transform:uppercase;color:#f5c800}input[type=file],input[type=text]{width:100%;padding:11px;background:#2e2500;color:#fff8e0;border:1px solid #4a3c00;border-radius:8px;font:inherit}button{margin-top:22px;width:100%;padding:15px;background:#f5c800;border:0;border-radius:10px;font-weight:900;font-size:16px;cursor:pointer}#log{margin-top:16px;font-size:14px;white-space:pre-wrap;line-height:1.5}</style></head><body><div class="box">
+<h1>RumHam Quiz Builder</h1><p>Spreadsheet + media in, .rqz out. Needs internet once (spreadsheet reader).</p>
+<label>1. Spreadsheet (.xlsx / .xlsm)</label><input type="file" id="xl" accept=".xlsx,.xlsm,.xls">
+<label>2. Media files (images, author pics, audio — select all at once)</label><input type="file" id="media" multiple accept="image/*,audio/*">
+<label>Quiz title</label><input type="text" id="title" value="Quiz Night">
+<button id="build">BUILD .RQZ</button><div id="log"></div></div>
+<script>
+const $=id=>document.getElementById(id), log=t=>$('log').textContent=t;
+const rd=(f,buf)=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;buf?r.readAsArrayBuffer(f):r.readAsDataURL(f)});
+$('build').onclick=async()=>{try{
+ const xf=$('xl').files[0]; if(!xf)return log('Choose the spreadsheet first.');
+ if(typeof XLSX==='undefined')return log('Spreadsheet reader did not load - check internet connection.');
+ log('Reading spreadsheet…');
+ const wb=XLSX.read(await rd(xf,true),{type:'array'});
+ const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+ const get=(r,k)=>{const key=Object.keys(r).find(x=>x.trim().toLowerCase()===k.toLowerCase());return key===undefined?'':String(r[key]).trim()};
+ const files={};for(const f of $('media').files)files[f.name.toLowerCase()]=f;
+ const used=new Set(),missing=new Set();
+ const use=n=>{if(!n)return null;const k=n.toLowerCase();if(files[k]){used.add(k);return files[k].name}missing.add(n);return null};
+ const author=a=>{if(!a)return null;const k=Object.keys(files).find(x=>x.replace(/\.[^.]+$/,'')===a.toLowerCase());if(k){used.add(k);return files[k].name}return null};
+ const rounds=new Map();
+ for(const r of rows){const q=get(r,'Question');if(!q)continue;const rn=Number(get(r,'Round Number'))||0;
+  if(!rounds.has(rn))rounds.set(rn,{number:rn,title:get(r,'Round Title')||'Round '+rn,questions:[]});
+  const R=rounds.get(rn);
+  R.questions.push({number:Number(get(r,'Question Number'))||R.questions.length+1,category:get(r,'Question Category'),question:q,answer:get(r,'Answer'),points:Number(get(r,'Points'))||1,isPicture:/^(true|yes|1)$/i.test(get(r,'Is Picture Round')),image:use(get(r,'Image File')),info:get(r,'Info'),author:get(r,'Author'),authorImg:author(get(r,'Author')),qAudio:use(get(r,'Question Audio')),aAudio:use(get(r,'Answer Audio'))});}
+ const media={};let i=0;
+ for(const k of used){log('Packing media '+(++i)+' / '+used.size+'…');media[files[k].name]=await rd(files[k]);}
+ const quiz={format:'rumham-quiz',version:2,title:$('title').value||'Quiz',created:new Date().toISOString().slice(0,10),rounds:[...rounds.values()].sort((a,b)=>a.number-b.number),media};
+ const blob=new Blob([JSON.stringify(quiz)]),a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);a.download=($('title').value||'Quiz')+'.rqz';a.click();
+ const nq=quiz.rounds.reduce((n,r)=>n+r.questions.length,0);
+ log('Done: '+quiz.rounds.length+' rounds, '+nq+' questions, '+used.size+' media files, '+(blob.size/1048576).toFixed(1)+' MB.'+(missing.size?'\nNOT FOUND in your media selection ('+missing.size+'):\n'+[...missing].slice(0,15).join('\n'):''));
+}catch(e){log('Error: '+e.message)}};
+</script></body></html>

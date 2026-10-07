@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102A4A">
+<title>RumHam Host</title>
+<style>
+:root{--yellow:#FFD90E;--black:#050505;--white:#fff;--navy:#102A4A;--purple:#5A155F;--cyan:#20C7D9;--bg:#eef1f5;--muted:#667085;--border:#d9dee7}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--black);height:100vh;height:100dvh;overflow:hidden}
+button{font:inherit;cursor:pointer;border:0}.app{height:100%;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+.top{height:clamp(44px,7vh,64px);background:var(--navy);color:white;display:flex;align-items:center;padding:0 clamp(10px,2vw,18px);gap:12px;flex-shrink:0;padding-top:env(safe-area-inset-top,0px)}
+.logo{font-weight:900;font-size:clamp(16px,3vh,24px);letter-spacing:.5px;white-space:nowrap}.logo span{color:var(--yellow)}.quiz-title{font-weight:700;opacity:.9;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tbtns{display:flex;gap:8px;flex-shrink:0}.top button{background:white;color:var(--navy);border-radius:9px;padding:clamp(6px,1.2vh,10px) 12px;font-weight:800;font-size:clamp(12px,2vh,15px)}
+.main{display:grid;grid-template-columns:clamp(150px,18vw,230px) minmax(0,1fr);min-height:0;flex:1}
+.sidebar{background:white;border-right:1px solid var(--border);overflow:auto;padding:12px}
+.side-title{font-weight:900;font-size:12px;color:var(--muted);text-transform:uppercase;margin:2px 6px 8px}
+.round-btn{width:100%;text-align:left;background:white;border:1px solid var(--border);border-radius:10px;padding:clamp(7px,1.5vh,11px) 11px;margin-bottom:7px;font-weight:800;font-size:clamp(12px,2vh,15px)}
+.round-btn.active{background:var(--navy);color:white;border-color:var(--navy)}.round-btn small{display:block;font-weight:500;opacity:.7;margin-top:2px}
+.content{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:clamp(8px,1.8vh,20px) clamp(8px,2vw,22px)}
+.round-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:clamp(4px,1vh,10px);flex-shrink:0}
+.round-head h1{margin:0;font-size:clamp(16px,3.2vh,26px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.round-head .count{color:var(--muted);font-weight:700;font-size:clamp(11px,1.8vh,14px);white-space:nowrap}
+.question-grid{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:clamp(6px,1.2vh,12px);flex-shrink:0;padding-bottom:2px}
+.qnum{min-width:clamp(32px,5vh,42px);height:clamp(28px,4.8vh,38px);border-radius:8px;background:white;border:1px solid var(--border);font-weight:900;font-size:clamp(12px,1.9vh,15px);flex-shrink:0}
+.qnum.active{background:var(--yellow);border-color:#d4b800}.qnum.done{background:#dcecf0}
+.card{background:white;border-radius:14px;border:1px solid var(--border);padding:clamp(10px,2vh,22px);box-shadow:0 4px 18px rgba(16,42,74,.06);max-width:1100px;width:100%;margin:0 auto;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:clamp(6px,1.4vh,14px);flex-shrink:0}.pill{background:#edf2f7;border-radius:999px;padding:4px 9px;font-size:clamp(10px,1.7vh,13px);font-weight:800}.pill.points{background:var(--yellow)}
+.qbody{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.lrow{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-shrink:0}.label{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.pbtn{width:24px;height:24px;border-radius:50%;background:var(--cyan);color:var(--black);padding:0;font-size:10px;font-weight:900;line-height:1;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.qreg{flex:3 1 0;min-height:0;overflow:hidden;display:flex;flex-direction:column}.answer-box{display:flex;flex-direction:column}.pic .qleft{text-align:center}.pic .lrow{justify-content:center}.pic .question,.pic .answer{margin-top:auto}.pic .question{margin-bottom:auto}.pic .info{margin-bottom:auto}.qimg{object-position:center center}.question,.answer,.info{overflow-wrap:anywhere}.question{font-size:28px;line-height:1.12;font-weight:800;margin:0}
+.qleft{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}.qbody.pic{flex-direction:row;gap:clamp(10px,2vw,24px);overflow:hidden}.pic .qleft{flex:1 1 50%}.qimg{flex:1 1 50%;min-width:0;min-height:0;width:50%;max-height:100%;align-self:stretch;object-fit:contain;border-radius:12px}
+
+.answer-box{flex:2 1 0;min-height:0;overflow:hidden;border-top:2px dashed var(--border);padding-top:clamp(6px,1.2vh,12px);margin-top:clamp(6px,1.2vh,12px)}.answer-box.veil{visibility:hidden}.answer{font-size:24px;font-weight:900;color:var(--purple);line-height:1.12}
+.info{color:#344054;line-height:1.3;margin-top:6px;font-size:14px}.hidden{display:none}
+.aimg{height:clamp(22px,3.6vh,30px);width:clamp(22px,3.6vh,30px);border-radius:50%;object-fit:cover;border:2px solid var(--yellow);background:#fff;flex-shrink:0}
+.controls{display:flex;justify-content:center;gap:8px;margin:clamp(6px,1.4vh,14px) auto 0;max-width:1100px;width:100%;flex-shrink:0}
+.control{flex:1;max-width:220px;padding:clamp(9px,1.8vh,14px) 8px;border-radius:10px;font-weight:900;font-size:clamp(11px,1.9vh,15px);background:white;border:1px solid var(--border)}.control:disabled{opacity:.4}
+.primary{background:var(--navy);color:white;border-color:var(--navy)}.reveal{background:var(--yellow);color:var(--black);border-color:#d4b800}
+.status{margin-top:6px;color:var(--muted);font-size:12px;text-align:center;flex-shrink:0}
+.modal{position:fixed;inset:0;background:rgba(5,5,5,.6);display:flex;align-items:center;justify-content:center;padding:20px;z-index:5}.modalbox{background:white;border-radius:16px;padding:25px;max-width:500px;width:100%}.modalbox h2{margin-top:0}.modalbox p{line-height:1.5;color:#475467}.file{display:block;width:100%;padding:14px;border:2px dashed var(--border);border-radius:10px}.modal-actions{display:flex;justify-content:flex-end;margin-top:16px}.modal.hidden{display:none}.close{background:var(--navy);color:white;padding:11px 18px;border-radius:9px;font-weight:800}
+@media(max-width:600px) and (orientation:portrait){.qbody.pic{flex-direction:column}.pic .qleft{flex:0 1 auto;max-height:55%}.qimg{flex:1 1 0;width:100%;min-height:90px}}
+@media(max-height:700px){.status{display:none}}
+@media(max-width:800px),(max-height:520px){
+.main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+.sidebar{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--border);padding:6px}
+.side-title{display:none}.round-btn{width:auto;white-space:nowrap;margin:0;padding:6px 10px;flex-shrink:0}.round-btn small{display:inline;margin-left:6px}
+.quiz-title{display:none}.tbtns{margin-left:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div class="logo">RUM<span>HAM</span> HOST</div>
+  <div class="quiz-title" id="quizTitle">No quiz loaded</div>
+  <div class="tbtns"><button id="fsBtn" onclick="toggleFS()">FULLSCREEN</button><button onclick="openImporter()">IMPORT QUIZ</button></div>
+</header>
+<div class="main">
+  <aside class="sidebar" id="rounds"></aside>
+  <section class="content" id="content"></section>
+</div>
+</div>
+
+<div class="modal hidden" id="importModal">
+ <div class="modalbox">
+  <h2>Import Quiz</h2>
+  <p>Select a <b>.rqz</b> quiz package. The dummy package supplied with this test is plain JSON with an <code>.rqz</code> extension. It can be loaded completely offline.</p>
+  <input class="file" id="fileInput" type="file" accept=".rqz,.json,application/json,text/plain,.txt">
+  <div class="modal-actions"><button class="close" onclick="closeImporter()">Cancel</button></div>
+ </div>
+</div>
+
+<script>
+const dummy = {"format": "rumham-quiz", "version": 1, "title": "RumHam Dummy Test Quiz", "created": "2026-10-07", "rounds": [{"number": 1, "title": "General Knowledge", "questions": [{"number": 1, "category": "General", "question": "What is the capital city of Australia?", "answer": "Canberra", "points": 1, "info": "Canberra became Australia's capital in 1913.", "author": "RumHam"}, {"number": 2, "category": "Science", "question": "What planet is known as the Red Planet?", "answer": "Mars", "points": 1, "info": "Mars gets its reddish appearance from iron oxide on its surface.", "author": "RumHam"}, {"number": 3, "category": "Food", "question": "What is the main ingredient in traditional hummus?", "answer": "Chickpeas", "points": 1, "info": "Traditional hummus is made primarily from cooked chickpeas and tahini.", "author": "RumHam"}, {"number": 4, "category": "Film", "question": "Which film features the character Jack Sparrow?", "answer": "Pirates of the Caribbean", "points": 2, "info": "Johnny Depp played Captain Jack Sparrow.", "author": "RumHam"}, {"number": 5, "category": "Music", "question": "Which band recorded the song 'Dancing Queen'?", "answer": "ABBA", "points": 1, "info": "Dancing Queen was released by ABBA in 1976.", "author": "RumHam"}, {"number": 6, "category": "Sport", "question": "How many players are on the field for one football team at the start of a match?", "answer": "11", "points": 1, "info": "A standard association football team starts with eleven players.", "author": "RumHam"}]}, {"number": 2, "title": "80s & 90s", "questions": [{"number": 1, "category": "Music", "question": "Which singer released the album 'Like a Prayer' in 1989?", "answer": "Madonna", "points": 1, "info": "Like a Prayer was Madonna's fourth studio album.", "author": "RumHam"}, {"number": 2, "category": "TV", "question": "What was the name of the coffee shop in Friends?", "answer": "Central Perk", "points": 1, "info": "Central Perk was the fictional coffee shop frequently visited by the main characters.", "author": "RumHam"}, {"number": 3, "category": "Film", "question": "Who played the title character in Mrs Doubtfire?", "answer": "Robin Williams", "points": 2, "info": "Robin Williams played Daniel Hillard / Mrs Doubtfire.", "author": "RumHam"}, {"number": 4, "category": "Technology", "question": "Which company created the Windows operating system?", "answer": "Microsoft", "points": 1, "info": "Microsoft developed Windows as its family of operating systems.", "author": "RumHam"}]}, {"number": 3, "title": "Picture Round", "questions": [{"number": 1, "category": "Picture", "question": "Dummy picture question \u2014 this is where an image will appear.", "answer": "Example Image Answer", "points": 1, "info": "Image support will be added to the package format.", "author": "RumHam", "isPicture": true}, {"number": 2, "category": "Picture", "question": "Dummy second picture question \u2014 test navigation between picture questions.", "answer": "Second Image Answer", "points": 1, "info": "This is dummy data for testing.", "author": "RumHam", "isPicture": true}]}]};
+let quiz = null, roundIndex=0, qIndex=0, revealed=false, completed=new Set();
+
+const au=new Audio();let lastKey='';
+function refreshBtns(){document.querySelectorAll('.pbtn').forEach(b=>b.textContent=(!au.paused&&au.dataset.n===b.dataset.n)?'\u275A\u275A':'\u25B6')}
+['play','pause','ended'].forEach(e=>au.addEventListener(e,refreshBtns));
+function playA(w){const q=quiz.rounds[roundIndex].questions[qIndex],n=w==='q'?q.qAudio:q.aAudio;if(!n)return;if(!au.paused&&au.dataset.n===n){au.pause();return}au.src=quiz.media[n];au.dataset.n=n;au.play().catch(e=>alert('Audio failed: '+e.message))}
+const cropCache={};
+function cropAuthor(src){return new Promise(ok=>{const im=new Image();im.onerror=()=>ok(src);im.onload=()=>{try{
+ const sc=Math.min(1,768/im.width),w=Math.max(1,Math.round(im.width*sc)),h=Math.max(1,Math.round(im.height*sc));
+ const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(im,0,0,w,h);
+ const d=x.getImageData(0,0,w,h).data;let x0=w,y0=h,x1=-1,y1=-1;
+ for(let y=0;y<h;y++)for(let i=0;i<w;i++){const p=(y*w+i)*4;if(d[p+3]>20&&!(d[p]>240&&d[p+1]>240&&d[p+2]>240)){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y}}
+ if(x1<0)return ok(src);
+ const bw=x1-x0+1,bh=y1-y0+1,side=Math.max(bw,bh);
+ let sx=Math.round((x0+x1)/2-side/2),sy=y0;sx=Math.max(0,Math.min(sx,w-side));if(side>w)sx=0;
+ const o=document.createElement('canvas');o.width=o.height=160;const ox=o.getContext('2d');
+ ox.drawImage(c,sx,sy,side,side,0,0,160,160);ok(o.toDataURL('image/png'))}catch(e){ok(src)}};im.src=src})}
+async function prepAuthors(){const qz=quiz,M=qz.media||{},names=new Set();
+ qz.rounds.forEach(r=>r.questions.forEach(q=>{if(q.authorImg&&M[q.authorImg])names.add(q.authorImg)}));
+ let changed=false;
+ for(const n of names){const k=n+'|'+M[n].length;if(!cropCache[k]){cropCache[k]=await cropAuthor(M[n]);changed=true}}
+ if(changed&&quiz===qz)render()}
+function authorSrc(q){const M=quiz.media||{};if(!q.authorImg||!M[q.authorImg])return '';return cropCache[q.authorImg+'|'+M[q.authorImg].length]||M[q.authorImg]}
+function init(){loadQuiz(dummy)}
+function loadQuiz(data){
+ quiz=data; au.pause();lastKey='';roundIndex=0;qIndex=0;revealed=false;completed=new Set();
+ document.getElementById('quizTitle').textContent=data.title||'RumHam Quiz';
+ renderRounds(); render(); prepAuthors();
+}
+function renderRounds(){
+ const el=document.getElementById('rounds');
+ el.innerHTML='<div class="side-title">Rounds</div>';
+ quiz.rounds.forEach((r,i)=>{
+   const b=document.createElement('button'); b.className='round-btn '+(i===roundIndex?'active':'');
+   b.innerHTML='Round '+r.number+' — '+esc(r.title)+'<small>'+r.questions.length+' questions</small>';
+   b.onclick=()=>{roundIndex=i;qIndex=0;renderRounds();render()};
+   el.appendChild(b);
+ });
+}
+function fitReg(reg,apply,lo,hi){while(lo<hi){const m=Math.ceil((lo+hi)/2);apply(m);if(reg.scrollHeight<=reg.clientHeight+1&&reg.scrollWidth<=reg.clientWidth+1)lo=m;else hi=m-1}apply(lo)}
+function fitText(){
+ const qr=document.getElementById('qreg'),ar=document.getElementById('areg');if(!qr||!ar)return;
+ const qt=document.getElementById('qtxt'),at=document.getElementById('atxt'),inf=ar.querySelector('.info');
+ const max=Math.max(20,Math.min(140,innerHeight*.14));
+ fitReg(qr,s=>{qt.style.fontSize=s+'px'},10,max);
+ fitReg(ar,s=>{at.style.fontSize=s+'px';if(inf)inf.style.fontSize=Math.max(10,Math.round(s*.42))+'px'},10,Math.round(max*.9));
+}
+window.addEventListener('resize',()=>requestAnimationFrame(fitText));
+function render(){
+ const r=quiz.rounds[roundIndex], q=r.questions[qIndex];
+ const content=document.getElementById('content');
+ const M=quiz.media||{}, mk=roundIndex+'-'+qIndex; if(mk!==lastKey){au.pause();lastKey=mk}
+ const img=q.image&&M[q.image]?`<img class="qimg" src="${M[q.image]}" alt="">`:'';
+ const pb=(w,n)=>n&&M[n]?`<button class="pbtn" data-n="${esc(n)}" onclick="playA('${w}')" title="Play audio" aria-label="Play audio">\u25B6</button>`:'';
+ const aimg=authorSrc(q)?`<img class="aimg" src="${authorSrc(q)}" title="${esc(q.author)}" alt="">`:'';
+ let nums=r.questions.map((x,i)=>{
+   const key=roundIndex+'-'+i, cls=(i===qIndex?'active ':'')+(completed.has(key)?'done ':'');
+   return `<button class="qnum ${cls}" onclick="goQ(${i})">${x.number}</button>`;
+ }).join('');
+ content.innerHTML=`
+ <div class="round-head"><h1>Round ${r.number} \u2014 ${esc(r.title)}</h1><div class="count">${qIndex+1} of ${r.questions.length}</div></div>
+ <div class="question-grid">${nums}</div>
+ <div class="card">
+   <div class="meta">
+    <span class="pill">Question ${q.number}</span>
+    <span class="pill">${esc(q.category||'')}</span>
+    <span class="pill points">${q.points||0} point${q.points==1?'':'s'}</span>
+    ${aimg}
+    ${q.isPicture?'<span class="pill">PICTURE</span>':''}
+   </div>
+   <div class="qbody ${img?'pic':''}"><div class="qleft">
+     <div class="qreg" id="qreg"><div class="lrow"><span class="label">Question</span>${pb('q',q.qAudio)}</div><div class="question" id="qtxt">${esc(q.question)}</div></div>
+     <div class="answer-box ${revealed?'':'veil'}" id="areg"><div class="lrow"><span class="label">Answer</span>${pb('a',q.aAudio)}</div><div class="answer" id="atxt">${esc(q.answer)}</div>${q.info?`<div class="info">${esc(q.info)}</div>`:''}</div>
+   </div>${img}</div></div>
+ <div class="controls">
+   <button class="control" onclick="previousQ()" ${qIndex===0?'disabled':''}>\u2190 PREVIOUS</button>
+   <button class="control reveal" onclick="toggleAnswer()">${revealed?'HIDE ANSWER':'SHOW ANSWER'}</button>
+   <button class="control primary" onclick="nextQ()" ${qIndex===r.questions.length-1?'disabled':''}>NEXT \u2192</button>
+ </div>
+ <div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 Quiz data is held locally in this browser</div>`;
+ fitText();refreshBtns();
+}
+function goQ(i){qIndex=i;render()}
+function toggleAnswer(){revealed=!revealed;completed.add(roundIndex+'-'+qIndex);render()}
+function nextQ(){if(qIndex<quiz.rounds[roundIndex].questions.length-1){qIndex++;render()}}
+function previousQ(){if(qIndex>0){qIndex--;render()}}
+const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
+function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
+function fsUpdate(){document.getElementById('fsBtn').textContent=FSon()?'EXIT FULLSCREEN':'FULLSCREEN';requestAnimationFrame(fitText)}
+['fullscreenchange','webkitfullscreenchange'].forEach(e=>document.addEventListener(e,fsUpdate));
+if(!(FSel.requestFullscreen||FSel.webkitRequestFullscreen))document.getElementById('fsBtn').style.display='none';
+document.addEventListener('keydown',e=>{if((e.key==='f'||e.key==='F')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/INPUT|TEXTAREA/.test(e.target.tagName)&&document.getElementById('importModal').classList.contains('hidden'))toggleFS()});
+function openImporter(){document.getElementById('importModal').classList.remove('hidden')}
+function closeImporter(){document.getElementById('importModal').classList.add('hidden')}
+document.getElementById('fileInput').addEventListener('change', async e=>{
+ const f=e.target.files[0]; if(!f)return;
+ try{const data=JSON.parse(await f.text());loadQuiz(data);closeImporter();e.target.value=''}
+ catch(err){alert('Could not read this quiz package. For this first test it must contain JSON quiz data.')}
+});
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+init();
+</script>
+</body>
+</html>
