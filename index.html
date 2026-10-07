@@ -67,7 +67,7 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .ggrid{display:grid;grid-template-columns:repeat(var(--cols),1fr);gap:clamp(8px,1.8vh,16px)}
 .gbtn{height:clamp(48px,calc((var(--app-h,700px) - 230px) / var(--rows) - 14px),130px);border-radius:16px;background:rgba(255,255,255,.08);border:2px solid var(--border);color:#fff;font-family:var(--display);font-size:clamp(26px,6vh,56px);box-shadow:0 4px 0 rgba(0,0,0,.35)}.gbtn:hover{border-color:var(--yellow)}.gbtn.done{background:rgba(32,199,217,.2);border-color:var(--cyan)}
 .modal{position:fixed;inset:0;background:rgba(5,5,5,.6);display:flex;align-items:center;justify-content:center;padding:20px;z-index:5}.modalbox{background:white;color:var(--black);border-top:6px solid var(--yellow);border-radius:16px;padding:25px;max-width:500px;width:100%}.modalbox h2{margin-top:0}.modalbox p{line-height:1.5;color:#475467}.file{display:block;width:100%;padding:14px;border:2px dashed #d9dee7;border-radius:10px}.modal-actions{display:flex;justify-content:flex-end;margin-top:16px}.modal.hidden{display:none}.close{background:var(--navy);color:white;padding:11px 18px;border-radius:9px;font-weight:800}
-@media(max-width:600px) and (orientation:portrait){.qbody.pic{flex-direction:column}.pic .qleft{flex:0 1 auto;max-height:55%}.qimg{flex:1 1 0;width:100%;min-height:90px}}
+@media(max-width:600px) and (orientation:portrait){.qbody.pic{flex-direction:column;gap:8px}.pic .qleft{flex:1 1 0;max-height:none;width:100%}.qimg{flex:0 0 34%;width:100%;height:auto;min-height:0;max-height:34%;align-self:center}}
 @media(max-height:700px){.status{display:none}}
 @media(max-width:800px),(max-height:520px){
 .main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
@@ -78,6 +78,7 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 @media(max-height:520px){.meta{margin-bottom:4px;gap:4px}.pill{padding:2px 7px}.round-head{margin-bottom:2px}.question-grid{margin-bottom:4px}.label{font-size:10px}.controls{margin-top:4px}.control{padding:7px 6px}.round-head .count{display:none}.sidebar{scrollbar-width:none}.board{padding:14px 18px;gap:6px}.board h1{font-size:clamp(22px,7vh,40px)}.go{padding:8px 22px}.qnum{height:26px;min-width:30px}}
 @media(min-width:1500px) and (min-height:800px){.question-grid{gap:8px}}
 @media(prefers-reduced-motion:reduce){.answer-box.pop{animation:none}}
+@media(max-width:600px),(max-height:520px){.card::before,.board::before{inset:3px;border-width:2px}.card{padding:max(12px,1.6vh) 14px}}
 </style>
 </head>
 <body>
