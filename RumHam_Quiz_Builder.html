@@ -1,14 +1,33 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RumHam Quiz Builder</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>body{margin:0;padding:24px;background:#1a1400;color:#fff8e0;font-family:Arial,sans-serif}.box{max-width:560px;margin:auto;background:#221c00;border:1px solid #4a3c00;border-radius:14px;padding:24px}h1{margin:0 0 4px;color:#f5c800}p{color:#a89a60;font-size:14px;margin:0 0 18px}label{display:block;font-weight:700;margin:16px 0 6px;font-size:13px;text-transform:uppercase;color:#f5c800}input[type=file],input[type=text]{width:100%;padding:11px;background:#2e2500;color:#fff8e0;border:1px solid #4a3c00;border-radius:8px;font:inherit}button{margin-top:22px;width:100%;padding:15px;background:#f5c800;border:0;border-radius:10px;font-weight:900;font-size:16px;cursor:pointer}#log{margin-top:16px;font-size:14px;white-space:pre-wrap;line-height:1.5}</style></head><body><div class="box">
+<style>body{margin:0;padding:24px;background:#1a1400;color:#fff8e0;font-family:Arial,sans-serif}.box{max-width:560px;margin:auto;background:#221c00;border:1px solid #4a3c00;border-radius:14px;padding:24px}h1{margin:0 0 4px;color:#f5c800}p{color:#a89a60;font-size:14px;margin:0 0 18px}label{display:block;font-weight:700;margin:16px 0 6px;font-size:13px;text-transform:uppercase;color:#f5c800}select,input[type=file],input[type=text]{width:100%;padding:11px;background:#2e2500;color:#fff8e0;border:1px solid #4a3c00;border-radius:8px;font:inherit}button{margin-top:22px;width:100%;padding:15px;background:#f5c800;border:0;border-radius:10px;font-weight:900;font-size:16px;cursor:pointer}.row{display:flex;gap:8px}button.sm{width:auto;flex:1;margin:0;padding:11px 8px;font-size:13px}#mlist{margin-top:8px;font-size:13px;color:#a89a60}#log{margin-top:16px;font-size:14px;white-space:pre-wrap;line-height:1.5}</style></head><body><div class="box">
 <h1>RumHam Quiz Builder</h1><p>Spreadsheet + media in, .rqz out. Needs internet once (spreadsheet reader).</p>
 <label>1. Spreadsheet (.xlsx / .xlsm)</label><input type="file" id="xl">
-<label>2. Media files (images, author pics, audio — select all at once)</label><input type="file" id="media" multiple accept="image/*,audio/*">
+<label>2. Media files (images, author pics, audio — add from as many folders as you like)</label><input type="file" id="media" multiple accept="image/*,audio/*" style="display:none"><input type="file" id="mdir" webkitdirectory multiple style="display:none">
+<div class="row"><button type="button" class="sm" id="addF">+ ADD FILES</button><button type="button" class="sm" id="addD">+ ADD FOLDER</button><button type="button" class="sm" id="clr">CLEAR</button></div><div id="mlist">No media added yet.</div>
+<label>Image size</label><select id="isz"><option value="1600">Standard - max 1600px (recommended)</option><option value="1200">Small - max 1200px</option><option value="0">Keep originals</option></select>
 <label>Quiz title</label><input type="text" id="title" value="Quiz Night">
 <button id="build">BUILD .RQZ</button><div id="log"></div></div>
 <script>
 const $=id=>document.getElementById(id), log=t=>$('log').textContent=t;
 const rd=(f,buf)=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;buf?r.readAsArrayBuffer(f):r.readAsDataURL(f)});
+const shrink=(f,max)=>new Promise(ok=>{const u=URL.createObjectURL(f),im=new Image();
+ im.onerror=()=>{URL.revokeObjectURL(u);ok(null)};
+ im.onload=()=>{try{const W=im.naturalWidth,H=im.naturalHeight,sc=Math.min(1,max/Math.max(W,H));
+  if(sc===1&&f.size<5e5){URL.revokeObjectURL(u);return ok(null)}
+  const w=Math.max(1,Math.round(W*sc)),h=Math.max(1,Math.round(H*sc)),c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.drawImage(im,0,0,w,h);
+  let alpha=false;if(/png|webp/.test(f.type)){const d=x.getImageData(0,0,w,h).data;for(let n=3;n<d.length;n+=4)if(d[n]<250){alpha=true;break}}
+  const out=alpha?c.toDataURL('image/png'):c.toDataURL('image/jpeg',.85);URL.revokeObjectURL(u);ok(out)}catch(e){ok(null)}};
+ im.src=u});
+const pool=new Map();let clash=0;
+const isMedia=f=>/^(image|audio)\//.test(f.type)||/\.(jpe?g|png|gif|webp|mp3|m4a|wav|ogg|aac|flac)$/i.test(f.name);
+function addMedia(list){for(const f of list){if(!isMedia(f))continue;const k=f.name.toLowerCase();if(pool.has(k))clash++;pool.set(k,f)}
+ const a=[...pool.values()],im=a.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|gif|webp)$/i.test(f.name)).length;
+ $('mlist').textContent=a.length?a.length+' files added ('+im+' images, '+(a.length-im)+' audio)'+(clash?'. '+clash+' repeated file name'+(clash>1?'s':'')+' - the latest one is used.':''):'No media added yet.'}
+$('addF').onclick=()=>$('media').click();$('addD').onclick=()=>$('mdir').click();
+$('clr').onclick=()=>{pool.clear();clash=0;addMedia([])};
+for(const id of['media','mdir'])$(id).onchange=e=>{addMedia(e.target.files);e.target.value=''};
 $('build').onclick=async()=>{try{
  const xf=$('xl').files[0]; if(!xf)return log('Choose the spreadsheet first.');
  if(typeof XLSX==='undefined')return log('Spreadsheet reader did not load - check internet connection.');
@@ -16,21 +35,23 @@ $('build').onclick=async()=>{try{
  const wb=XLSX.read(await rd(xf,true),{type:'array'});
  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
  const get=(r,k)=>{const key=Object.keys(r).find(x=>x.trim().toLowerCase()===k.toLowerCase());return key===undefined?'':String(r[key]).trim()};
- const files={};for(const f of $('media').files)files[f.name.toLowerCase()]=f;
- const used=new Set(),missing=new Set();
+ const files=Object.fromEntries(pool);
+ const used=new Set(),missing=new Set(),authorUsed=new Set();
  const use=n=>{if(!n)return null;const k=n.toLowerCase();if(files[k]){used.add(k);return files[k].name}missing.add(n);return null};
- const author=a=>{if(!a)return null;const k=Object.keys(files).find(x=>x.replace(/\.[^.]+$/,'')===a.toLowerCase());if(k){used.add(k);return files[k].name}return null};
+ const author=a=>{if(!a)return null;const k=Object.keys(files).find(x=>x.replace(/\.[^.]+$/,'')===a.toLowerCase());if(k){used.add(k);authorUsed.add(k);return files[k].name}return null};
  const rounds=new Map();
  for(const r of rows){const q=get(r,'Question');if(!q)continue;const rn=Number(get(r,'Round Number'))||0;
   if(!rounds.has(rn))rounds.set(rn,{number:rn,title:get(r,'Round Title')||'Round '+rn,questions:[]});
   const R=rounds.get(rn);
   R.questions.push({number:Number(get(r,'Question Number'))||R.questions.length+1,category:get(r,'Question Category'),question:q,answer:get(r,'Answer'),points:Number(get(r,'Points'))||1,isPicture:/^(true|yes|1)$/i.test(get(r,'Is Picture Round')),image:use(get(r,'Image File')),info:get(r,'Info'),author:get(r,'Author'),authorImg:author(get(r,'Author')),qAudio:use(get(r,'Question Audio')),aAudio:use(get(r,'Answer Audio'))});}
- const media={};let i=0;
- for(const k of used){log('Packing media '+(++i)+' / '+used.size+'…');media[files[k].name]=await rd(files[k]);}
+ const media={};let i=0,ob=0,nb=0;const mx=+$('isz').value;
+ for(const k of used){const f=files[k];log('Packing media '+(++i)+' / '+used.size+'…');let d=null;
+  if(mx&&/^image\/(jpeg|png|webp)/.test(f.type)){d=await shrink(f,authorUsed.has(k)?800:mx);if(d){const b=Math.round((d.length-d.indexOf(',')-1)*.75);if(b<f.size){ob+=f.size;nb+=b}else d=null}}
+  media[f.name]=d||await rd(f)}
  const quiz={format:'rumham-quiz',version:2,title:$('title').value||'Quiz',created:new Date().toISOString().slice(0,10),rounds:[...rounds.values()].sort((a,b)=>a.number-b.number),media};
  const blob=new Blob([JSON.stringify(quiz)]),a=document.createElement('a');
  a.href=URL.createObjectURL(blob);a.download=($('title').value||'Quiz')+'.rqz';a.click();
  const nq=quiz.rounds.reduce((n,r)=>n+r.questions.length,0);
- log('Done: '+quiz.rounds.length+' rounds, '+nq+' questions, '+used.size+' media files, '+(blob.size/1048576).toFixed(1)+' MB.'+(missing.size?'\nNOT FOUND in your media selection ('+missing.size+'):\n'+[...missing].slice(0,15).join('\n'):''));
+ log('Done: '+quiz.rounds.length+' rounds, '+nq+' questions, '+used.size+' media files, '+(blob.size/1048576).toFixed(1)+' MB.'+(ob?' Pictures shrunk from '+(ob/1048576).toFixed(1)+' MB to '+(nb/1048576).toFixed(1)+' MB.':'')+(missing.size?'\nNOT FOUND in your media selection ('+missing.size+'):\n'+[...missing].slice(0,15).join('\n'):''));
 }catch(e){log('Error: '+e.message)}};
 </script></body></html>
