@@ -394,13 +394,15 @@ const sbar=i=>'<i class="rbar"><b style="width:'+pct(i)+'%"></b></i>';
 const cprog=i=>'<span class="rp"><i><b style="width:'+pct(i)+'%"></b></i><em>'+doneIn(i)+'/'+quiz.rounds[i].questions.length+'</em></span>';
 function plural(n,w){return n+' '+w+(n===1?'':'s')}
 function sumPts(r){return r.questions.reduce((a,q)=>a+(+q.points||0),0)}
+function scoreCard(){const n=Object.keys(scores).length,N=quiz.rounds.length;
+ return `<button class="rcard" onclick="openScores()"><span class="rn">\u2605</span><span class="rt">Scores</span><span class="rp"><i><b style="width:${Math.round(100*n/N)}%"></b></i><em>${n}/${N}</em></span></button>`}
 function renderContents(){
  const rs=quiz.rounds;
  const cards=rs.map((r,i)=>`<button class="rcard ${entered&&i===roundIndex?'current':''}" onclick="openRound(${i})"><span class="rn">${esc(r.number)}</span><span class="rt">${esc(r.title)}</span>${cprog(i)}</button>`).join('');
  document.getElementById('content').innerHTML=`<div class="toc">
   <div class="board"><h1>${esc(quiz.title||'RumHam Quiz')}</h1>
    <button class="go" onclick="showQuiz()">${entered?'Back to quiz':'Start quiz'}</button></div>
-  <div class="rgrid">${cards}</div></div>`;
+  <div class="rgrid">${cards}${scoreCard()}</div></div>`;
 }
 function renderRound(){
  const r=quiz.rounds[roundIndex],n=r.questions.length,cols=n<=3?Math.max(n,1):n<=8?4:n<=10?5:6,rows=Math.ceil(n/cols);
