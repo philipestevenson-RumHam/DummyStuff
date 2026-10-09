@@ -200,13 +200,7 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .board.fitb{display:flex;flex-direction:column;gap:clamp(6px,1.4vh,12px);padding:clamp(10px,2.2vh,28px) clamp(14px,3vw,36px);flex:1;min-height:0}
 .board.fitb h1{font-size:clamp(22px,5.4vh,52px)}.board.fitb .stats,.board.fitb .endbtns{flex-shrink:0}.board.fitb .stats .pill{font-size:clamp(11px,1.9vh,15px)}
 .board.fitb .go{margin-top:0;padding:clamp(7px,1.3vh,12px) clamp(18px,2.4vw,30px);font-size:clamp(12px,2vh,16px)}
-@media(max-width:600px),(max-height:520px){
-.sc{flex:none}.sgrid{flex:none;max-height:none;grid-template-rows:repeat(var(--r),44px)}
-.sbl{flex:none;max-height:none;grid-template-rows:repeat(var(--r),36px)}.toc.fitt,.board.fitb{flex:none}.board.fitb{overflow:visible}
-.sin{height:34px;font-size:16px}.sn,.stot{font-size:15px}.sbli{font-size:15px}
-.sc .controls{position:sticky;bottom:0;z-index:2;background:rgba(8,20,38,.94);padding:6px 0}
-.sc .rhead h1{font-size:clamp(18px,5vw,30px)}}
-@media(max-width:600px){.sgrid,.sbl{grid-auto-flow:row;grid-template-columns:1fr;grid-template-rows:none;grid-auto-rows:44px;display:grid}.sbl{grid-auto-rows:36px}.sc .controls{flex-wrap:wrap}.sc .control{min-width:42%}}
+@media(max-width:600px){.sgrid{display:flex;flex-direction:column;max-height:none;flex:none}.srow{padding:6px 12px}.sin{height:36px;font-size:18px}}
 </style>
 </head>
 <body>
