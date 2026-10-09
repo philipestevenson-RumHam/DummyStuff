@@ -207,6 +207,10 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .sc .controls{position:sticky;bottom:0;z-index:2;background:rgba(8,20,38,.94);padding:6px 0}
 .sc .rhead h1{font-size:clamp(18px,5vw,30px)}}
 @media(max-width:600px){.sgrid,.sbl{grid-auto-flow:row;grid-template-columns:1fr;grid-template-rows:none;grid-auto-rows:44px;display:grid}.sbl{grid-auto-rows:36px}.sc .controls{flex-wrap:wrap}.sc .control{min-width:42%}}
+.stp{flex:none;align-self:stretch;min-width:clamp(30px,5.2vh,42px);padding:0;border-radius:6px;background:rgba(255,255,255,.16);color:#fff;border:1px solid var(--border);font:900 clamp(16px,3vh,24px)/1 Arial,sans-serif;display:flex;align-items:center;justify-content:center;-webkit-touch-callout:none;touch-action:manipulation}
+.stp:active{background:var(--cyan);color:var(--black)}
+.tcl{align-items:stretch;gap:6px}.tcl .stp{height:34px;min-width:38px;align-self:center}.tcl input{align-self:center}
+@media(max-width:600px){.sn{width:4em}.sin{width:3.2em}.srow{gap:6px;padding:0 8px}.stp{min-width:38px}.srank{min-width:2.8em;padding:2px 4px}}
 </style>
 </head>
 <body>
@@ -544,7 +548,8 @@ function renderScore(){
  const R=quiz.rounds,fin=scoreR>=R.length,r=R[Math.min(scoreR,R.length-1)],ent=scores[scoreR],from=ent?ent.from:fromOf(scoreR),last=scoreR===R.length-1,on=obsBoardOn(),lay=layoutOf(teams);
  const chips=R.map((x,i)=>`<button class="schip ${i===scoreR?'on':''} ${scores[i]?'has':''}" onclick="openScores(${i})" aria-label="Round ${esc(x.number)} scores">R${esc(x.number)}</button>`).join('')+`<button class="schip ${fin?'on':''}" onclick="openScores(${R.length})">Final</button>`;
  const cov=!fin&&from<scoreR?`<span class="pill cov">Covers Rounds ${esc(R[from].number)}\u2013${esc(r.number)}</span>`:'';
- const tc=`<label class="tcl">Teams <input id="tcount" type="number" min="1" max="30" inputmode="numeric" value="${teams}" onchange="setTeams(this.value)"></label>`;
+ const im=DESK?'decimal':'none';
+ const tc=`<div class="tcl">Teams <button type="button" class="stp" data-team="-1" aria-label="Fewer teams">\u2212</button><input id="tcount" type="number" min="1" max="30" inputmode="${DESK?'numeric':'none'}" value="${teams}" onchange="setTeams(this.value)"><button type="button" class="stp" data-team="1" aria-label="More teams">+</button></div>`;
  const obsBtn=(f)=>DESK?`<button class="control reveal" onclick="${on?'hideScoreObs()':'showScoreObs('+f+')'}">${on?'HIDE FROM OBS':f?'SHOW FINAL ON OBS':'SHOW ON OBS'}</button>`:'';
  let h,body,ctl;
  if(fin){
@@ -553,7 +558,7 @@ function renderScore(){
   ctl=`<button class="control" onclick="backFromScores()">\u2190 PREVIOUS</button>${any?obsBtn(true):''}<button class="control primary" onclick="afterScores()">FINISH &#10003;</button>`;
  }else{
   h='Scores after Round '+esc(r.number);
-  body=`<div class="sgrid" style="--r:${lay.r};--c:${lay.c}">`+Array.from({length:teams},(_,t)=>{const v=ent&&ent.v[t]!=null?ent.v[t]:'';return `<label class="srow" id="sr${t}"><span class="sn">Team ${t+1}</span><input class="sin" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" data-t="${t}" value="${v}" aria-label="Team ${t+1} points"><span class="stot"></span><span class="srank"></span></label>`}).join('')+'</div>';
+  body=`<div class="sgrid" style="--r:${lay.r};--c:${lay.c}">`+Array.from({length:teams},(_,t)=>{const v=ent&&ent.v[t]!=null?ent.v[t]:'';return `<div class="srow" id="sr${t}"><span class="sn">Team ${t+1}</span><button type="button" class="stp" data-t="${t}" data-d="-1" aria-label="Team ${t+1} minus">\u2212</button><input class="sin" type="text" inputmode="${im}" enterkeyhint="next" autocomplete="off" data-t="${t}" value="${v}" aria-label="Team ${t+1} points"><button type="button" class="stp" data-t="${t}" data-d="1" aria-label="Team ${t+1} plus">+</button><span class="stot"></span><span class="srank"></span></div>`}).join('')+'</div>';
   ctl=`<button class="control" onclick="backFromScores()">\u2190 PREVIOUS</button><button class="control" onclick="afterScores()">SKIP SCORES</button>${obsBtn(false)}<button class="control primary" onclick="afterScores()">${last?'FINISH &#10003;':'NEXT ROUND \u2192'}</button>`;
  }
  document.getElementById('content').innerHTML=`<div class="sc"><div class="rhead"><h1>${h}</h1></div><div class="sbar">${chips}${cov}${tc}</div>${body}<div class="controls">${ctl}</div></div>`;
@@ -569,6 +574,19 @@ function renderScore(){
   if(el.id==='tcount'){e.preventDefault();el.blur();return}
   if(!el.classList||!el.classList.contains('sin'))return;e.preventDefault();
   const all=[...c.querySelectorAll('.sin')],nx=all[all.indexOf(el)+1];if(nx){nx.focus();nx.select()}else el.blur()});
+})();
+function stepScore(t,d){let en=scores[scoreR];const cur=en&&en.v[t]!=null?+en.v[t]:0,n=Math.round((cur+d)*100)/100;
+ if(!en)en=scores[scoreR]={from:fromOf(scoreR),v:Array(30).fill(null)};en.v[t]=n;
+ const i=document.querySelector('.sin[data-t="'+t+'"]');if(i)i.value=n;updScore();saveSoon()}
+let holdT=0,holdI=0;
+function stopHold(){clearTimeout(holdT);clearInterval(holdI)}
+['pointerup','pointercancel','blur'].forEach(ev=>addEventListener(ev,stopHold));
+(function(){const c=document.getElementById('content');
+ c.addEventListener('pointerdown',e=>{const b=e.target.closest&&e.target.closest('.stp');if(!b)return;e.preventDefault();stopHold();
+  const team=b.dataset.team!=null,d=+(team?b.dataset.team:b.dataset.d),t=+b.dataset.t;let k=0;
+  const go=()=>{k++;if(team)setTeams(teams+d);else stepScore(t,d*(k>14?5:1))};
+  go();holdT=setTimeout(()=>{holdI=setInterval(go,team?170:85)},400)});
+ c.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.stp'))e.preventDefault()});
 })();
 init();
 </script>
