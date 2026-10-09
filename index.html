@@ -149,6 +149,27 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .content.enter>.card,.content.enter>.toc,.content.enter>.rslide .rhead{animation:cardin .22s ease-out}
 .content.enter .gbtn{animation:tilein .32s ease-out backwards;animation-delay:calc(var(--i,0)*25ms)}
 @media(prefers-reduced-motion:reduce){.card::after,.top::after,.board::after,.go,.content.enter>*,.content.enter .gbtn,.answer-box.pop .answer,.answer-box.pop .info{animation:none!important}}
+
+/* ===== timer + end screen ===== */
+.tmr{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:2.2em;width:6.4em;padding:0;border:0;border-radius:999px;font-size:clamp(10px,1.7vh,13px);font-weight:900;line-height:1;white-space:nowrap;flex-shrink:0;color:var(--black);font-variant-numeric:tabular-nums;background:linear-gradient(rgba(5,5,5,.35),rgba(5,5,5,.35)) left bottom/var(--p,100%) 4px no-repeat,var(--base,var(--cyan))}
+.tmr.warn{--base:var(--yellow)}
+.tmr.crit,.tmr.done{--base:#ff4d4d;color:#fff;animation:tcrit .5s ease-in-out infinite alternate}
+@keyframes tcrit{to{filter:brightness(1.3)}}
+@media(max-width:600px){.tmr{width:5.4em}}
+.stats .pill{font-size:clamp(13px,2.4vh,20px)}
+.endbtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.go.alt{background:rgba(255,255,255,.12);color:#fff;box-shadow:0 5px 0 rgba(0,0,0,.35);animation:none}
+.go.alt:active{box-shadow:0 2px 0 rgba(0,0,0,.35)}
+@media(prefers-reduced-motion:reduce){.tmr.crit,.tmr.done{animation:none!important}}
+
+/* ===== auto-start toggle + import dialog ===== */
+.tmr-auto{box-sizing:border-box;height:2.2em;padding:0 .75em;border-radius:999px;font-size:clamp(9px,1.5vh,11px);font-weight:900;letter-spacing:.04em;line-height:1;flex-shrink:0;color:var(--soft);background:rgba(255,255,255,.1);border:1px solid var(--border)}
+.tmr-auto.on{color:var(--black);background:var(--cyan);border-color:var(--cyan)}
+@media(max-width:600px){.tmr-auto{padding:0 .55em}}
+.modal-actions{gap:8px;flex-wrap:wrap}
+.close.ghost{background:#eef1f6;color:var(--navy)}
+.close.danger{background:#b42318}
+.modalbox p.note{font-size:13px;margin:12px 0 0}
 </style>
 </head>
 <body>
@@ -169,7 +190,8 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
   <h2>Import Quiz</h2>
   <p>Select a <b>.rqz</b> quiz package. The dummy package supplied with this test is plain JSON with an <code>.rqz</code> extension. It can be loaded completely offline.</p>
   <input class="file" id="fileInput" type="file">
-  <div class="modal-actions"><button class="close" onclick="closeImporter()">Cancel</button></div>
+  <p class="note">Imported quizzes are saved in this browser and reopen where you left off.</p>
+  <div class="modal-actions"><button class="close ghost" onclick="resetProgress()">Reset progress</button><button class="close danger" onclick="clearSaved()">Clear saved quiz</button><button class="close" onclick="closeImporter()">Cancel</button></div>
  </div>
 </div>
 
@@ -198,9 +220,40 @@ async function prepAuthors(){const qz=quiz,M=qz.media||{},names=new Set();
  for(const n of names){const k=n+'|'+M[n].length;if(!cropCache[k]){cropCache[k]=await cropAuthor(M[n]);changed=true}}
  if(changed&&quiz===qz)render()}
 function authorSrc(q){const M=quiz.media||{};if(!q.authorImg||!M[q.authorImg])return '';return cropCache[q.authorImg+'|'+M[q.authorImg].length]||M[q.authorImg]}
-function init(){loadQuiz(dummy)}
+let dbp=null;
+function db(){return dbp||(dbp=new Promise((ok,no)=>{try{const r=indexedDB.open('rumham-host',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);r.onblocked=()=>no('blocked')}catch(e){no(e)}}))}
+function kv(mode,f){return db().then(d=>new Promise((ok,no)=>{const t=d.transaction('kv',mode),st=t.objectStore('kv');let res;const rq=f(st);if(rq)rq.onsuccess=()=>{res=rq.result};t.oncomplete=()=>ok(res);t.onerror=t.onabort=()=>no(t.error)}))}
+const kvGet=k=>kv('readonly',st=>st.get(k)),kvSet=(k,v)=>kv('readwrite',st=>st.put(v,k));
+const qKey=()=>(quiz.title||'')+'|'+(quiz.created||'')+'|'+quiz.rounds.length;
+function saveQuiz(data){
+ try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+ return kv('readwrite',st=>{st.put(data,'quiz');st.delete('state')}).catch(()=>alert('This quiz could not be saved in the browser (storage may be full), so it will not reopen after a reload.'))}
+let stT=0;
+function saveState(){if(!quiz||quiz===dummy)return;kvSet('state',{v:1,k:qKey(),roundIndex,qIndex,view,entered,revealed,completed:[...completed]}).catch(()=>{})}
+function saveSoon(){clearTimeout(stT);stT=setTimeout(saveState,250)}
+function flushState(){clearTimeout(stT);saveState()}
+addEventListener('pagehide',flushState);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushState()});
+function restoreState(st){
+ if(!st||st.k!==qKey())return;
+ const R=quiz.rounds;if(!(st.roundIndex>=0&&st.roundIndex<R.length))return;
+ if(!(st.qIndex>=0&&st.qIndex<R[st.roundIndex].questions.length))return;
+ roundIndex=st.roundIndex;qIndex=st.qIndex;
+ view=['contents','round','quiz','end'].includes(st.view)?st.view:'contents';
+ entered=!!st.entered;revealed=!!st.revealed&&view==='quiz';
+ completed=new Set((st.completed||[]).filter(x=>typeof x==='string'));
+ renderRounds();render()}
+async function init(){
+ let saved,st,se;
+ try{[saved,st,se]=await Promise.race([Promise.all([kvGet('quiz'),kvGet('state'),kvGet('settings')]),new Promise(r=>setTimeout(()=>r([]),1500))])}catch(e){}
+ if(se&&typeof se.auto==='boolean')autoTimer=se.auto;
+ noAuto=true;
+ if(saved&&Array.isArray(saved.rounds)&&saved.rounds.length){loadQuiz(saved);restoreState(st)}else loadQuiz(dummy);
+ noAuto=false}
+function resetProgress(){if(!confirm('Reset progress? The quiz stays loaded and returns to the title screen.'))return;closeImporter();loadQuiz(quiz)}
+function clearSaved(){if(!confirm('Remove the saved quiz and your progress from this browser? You can import the quiz again later.'))return;kv('readwrite',st=>{st.delete('quiz');st.delete('state')}).catch(()=>{});closeImporter();loadQuiz(dummy)}
 function loadQuiz(data){
- quiz=data; au.pause();lastKey='';roundIndex=0;qIndex=0;revealed=false;completed=new Set();view='contents';entered=false;
+ quiz=data; au.pause();lastKey='';tm={s:'idle',left:TMR_MS,end:0};roundIndex=0;qIndex=0;revealed=false;completed=new Set();view='contents';entered=false;
  document.getElementById('quizTitle').textContent=data.title||'RumHam Quiz';
  renderRounds(); render(); prepAuthors();
 }
@@ -211,7 +264,7 @@ function renderRounds(){
  tb.innerHTML='Contents<small>'+quiz.rounds.length+' rounds</small>';tb.onclick=showContents;el.appendChild(tb);
  const st=document.createElement('div');st.className='side-title';st.textContent='Rounds';el.appendChild(st);
  quiz.rounds.forEach((r,i)=>{
-   const b=document.createElement('button'); b.className='round-btn '+(view!=='contents'&&i===roundIndex?'active':'');
+   const b=document.createElement('button'); b.className='round-btn '+(view!=='contents'&&view!=='end'&&i===roundIndex?'active':'');
    b.innerHTML='Round '+r.number+' — '+esc(r.title)+'<small>'+r.questions.length+' questions</small>'+sbar(i);
    b.onclick=()=>openRound(i);
    el.appendChild(b);
@@ -230,16 +283,38 @@ function setH(){document.documentElement.style.setProperty('--app-h',(window.vis
 setH();['resize','orientationchange'].forEach(e=>window.addEventListener(e,()=>{setH();setTimeout(setH,250)}));
 if(window.visualViewport)visualViewport.addEventListener('resize',setH);
 if(window.ResizeObserver)new ResizeObserver(()=>requestAnimationFrame(fitText)).observe(document.getElementById('content'));
+const TMR_MS=30000;let tm={s:'idle',left:TMR_MS,end:0};let autoTimer=true,noAuto=false;
+function tmrLeft(){return tm.s==='run'?Math.max(0,tm.end-Date.now()):tm.left}
+function tmrFace(){const l=tmrLeft(),sec=Math.ceil(l/1000),st=tm.s;
+ const t=st==='idle'?'\u25B6 30s':st==='done'?'TIME UP':st==='pause'?'\u275A\u275A '+sec:String(sec);
+ const c=st+(st==='run'||st==='pause'?(sec<=5?' crit':sec<=10?' warn':''):'');
+ return{t,c,p:(st==='idle'?100:l/TMR_MS*100).toFixed(1)+'%'}}
+function tmrApply(el,base){if(!el)return;const f=tmrFace();el.textContent=f.t;el.className=base+' '+f.c;el.style.setProperty('--p',f.p)}
+function tmrPaint(){tmrApply(document.getElementById('tmr'),'tmr');if(obs&&!obs.closed)tmrApply(obs.document.getElementById('otm'),'pl t')}
+function tmrBtn(){const f=tmrFace();return `<button class="tmr ${f.c}" id="tmr" style="--p:${f.p}" onclick="tmrToggle()" title="Question timer (T)" aria-label="Question timer">${f.t}</button><button class="tmr-auto ${autoTimer?'on':''}" id="tauto" onclick="toggleAuto()" aria-pressed="${autoTimer}" title="Auto-start the timer when a question appears (A)">AUTO</button>`}
+function toggleAuto(){autoTimer=!autoTimer;const b=document.getElementById('tauto');if(b){b.classList.toggle('on',autoTimer);b.setAttribute('aria-pressed',autoTimer)}kvSet('settings',{auto:autoTimer}).catch(()=>{})}
+function obsTmr(){const f=tmrFace();return `<span id="otm" class="pl t ${f.c}" style="--p:${f.p}">${f.t}</span>`}
+function tmrToggle(){if(view!=='quiz')return;
+ if(tm.s==='idle')tm={s:'run',left:TMR_MS,end:Date.now()+TMR_MS};
+ else if(tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}
+ else if(tm.s==='pause'){tm.end=Date.now()+tm.left;tm.s='run'}
+ else tm={s:'idle',left:TMR_MS,end:0};
+ tmrPaint();obsSync(false)}
+function tmrReset(){if(tm.s==='idle')return;tm={s:'idle',left:TMR_MS,end:0};tmrPaint();obsSync(false)}
+setInterval(()=>{if(tm.s!=='run')return;if(tmrLeft()<=0){tm.s='done';tm.left=0}tmrPaint()},100);
 let lastRK='';
-function render(){const jr=justRevealed;renderMain();
- const rk=view+'|'+roundIndex+'|'+(view==='quiz'?qIndex:'');
- if(rk!==lastRK){lastRK=rk;const c=document.getElementById('content');c.classList.remove('enter');void c.offsetWidth;c.classList.add('enter');clearTimeout(render.t);render.t=setTimeout(()=>c.classList.remove('enter'),view==='quiz'?300:1300)}
- obsSync(jr)}
+function render(){const jr=justRevealed;
+ const rk=view+'|'+roundIndex+'|'+(view==='quiz'?qIndex:'');const chg=rk!==lastRK;
+ if(chg){lastRK=rk;tm={s:'idle',left:TMR_MS,end:0};if(autoTimer&&!noAuto&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:TMR_MS,end:Date.now()+TMR_MS}}
+ renderMain();
+ if(chg){const c=document.getElementById('content');c.classList.remove('enter');void c.offsetWidth;c.classList.add('enter');clearTimeout(render.t);render.t=setTimeout(()=>c.classList.remove('enter'),view==='quiz'?300:1300)}
+ obsSync(jr);saveSoon()}
 function renderMain(){
  const content=document.getElementById('content');
  content.classList.toggle('scroll',view!=='quiz');
  if(view==='contents'){renderContents();return}
  if(view==='round'){renderRound();return}
+ if(view==='end'){renderEnd();return}
  const r=quiz.rounds[roundIndex], q=r.questions[qIndex];
  const M=quiz.media||{}, mk=roundIndex+'-'+qIndex; if(mk!==lastKey){au.pause();lastKey=mk}
  const img=q.image&&M[q.image]?`<img class="qimg" src="${M[q.image]}" alt="">`:'';
@@ -257,7 +332,7 @@ function renderMain(){
     <span class="pill qn">Question ${String(q.number).padStart(2,'0')}</span>
     <span class="pill cat">${esc(q.category||'')}</span>
     ${q.isPicture?'<span class="pill">PICTURE</span>':''}
-    <span class="mr">${aimg}<span class="pill points">${q.points||0} point${q.points==1?'':'s'}</span></span>
+    <span class="mr">${tmrBtn()}${aimg}<span class="pill points">${q.points||0} point${q.points==1?'':'s'}</span></span>
    </div>
    <div class="qbody ${img?'pic':''}"><div class="qleft">
      <div class="qreg" id="qreg"><div class="lrow"><span class="label">Question</span>${pb('q',q.qAudio)}</div><div class="question" id="qtxt">${esc(q.question)}</div></div>
@@ -269,7 +344,7 @@ function renderMain(){
    <button class="control primary" onclick="nextQ()">${qIndex<r.questions.length-1?'NEXT \u2192':roundIndex<quiz.rounds.length-1?'NEXT ROUND \u2192':'FINISH &#10003;'}${kh('\u2192')}</button>
    <button class="control" onclick="showRound()">&#9638; GRID${kh('G')}</button>
  </div>
- <div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 ${DESK?'Space show/hide \u00B7 \u2190 \u2192 move \u00B7 G grid \u00B7 C contents \u00B7 O OBS screen':'Quiz data is held locally in this browser'}</div>`;
+ <div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 ${DESK?'Space show/hide \u00B7 \u2190 \u2192 move \u00B7 G grid \u00B7 T timer \u00B7 A auto \u00B7 C contents \u00B7 O OBS screen':'Quiz data is held locally in this browser'}</div>`;
  justRevealed=false;fitText();refreshBtns();const aq=content.querySelector('.qnum.active');if(aq&&aq.scrollIntoView)aq.scrollIntoView({block:'nearest',inline:'nearest'});
 }
 const kh=k=>DESK?'<kbd>'+k+'</kbd>':'';
@@ -292,15 +367,22 @@ function renderRound(){
  const b=r.questions.map((x,i)=>`<button class="gbtn ${completed.has(roundIndex+'-'+i)?'done':''}" style="--i:${i}" onclick="openQ(${i})">${esc(x.number)}</button>`).join('');
  document.getElementById('content').innerHTML=`<div class="rslide"><div class="rhead"><span class="rn">${esc(r.number)}</span><h1>${esc(r.title)}</h1></div><div class="ggrid" style="--cols:${cols};--rows:${rows}">${b}</div></div>`;
 }
+function showEnd(){view='end';au.pause();lastKey='';entered=true;renderRounds();render()}
+function backFromEnd(){view='quiz';renderRounds();render()}
+function renderEnd(){
+ const R=quiz.rounds,nq=R.reduce((a,r)=>a+r.questions.length,0),pts=R.reduce((a,r)=>a+sumPts(r),0);
+ document.getElementById('content').innerHTML=`<div class="toc"><div class="board"><h1>That's the quiz!</h1>
+  <div class="stats"><span class="pill">${plural(R.length,'round')}</span><span class="pill">${plural(nq,'question')}</span><span class="pill">${plural(pts,'point')} in total</span></div>
+  <div class="endbtns"><button class="go" onclick="loadQuiz(quiz)">Back to start</button><button class="go alt" onclick="showContents()">Review rounds</button></div></div></div>`}
 function showRound(){view='round';au.pause();lastKey='';renderRounds();render()}
 function openQ(i){qIndex=i;revealed=false;view='quiz';renderRounds();render()}
 function showContents(){view='contents';au.pause();lastKey='';renderRounds();render()}
 function showQuiz(){view=entered?'quiz':'round';entered=true;renderRounds();render()}
 function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=true;renderRounds();render()}
-function goQ(i){qIndex=i;render()}
-function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);renderRounds();render()}
-function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;render()}else if(roundIndex<R.length-1)openRound(roundIndex+1);else showContents()}
-function previousQ(){if(qIndex>0){qIndex--;render()}}
+function goQ(i){qIndex=i;revealed=false;render()}
+function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}renderRounds();render()}
+function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;revealed=false;render()}else if(roundIndex<R.length-1)openRound(roundIndex+1);else showEnd()}
+function previousQ(){if(qIndex>0){qIndex--;revealed=false;render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
 function fsUpdate(){document.getElementById('fsLbl').textContent=FSon()?'EXIT FULLSCREEN':'FULLSCREEN';requestAnimationFrame(fitText)}
@@ -313,9 +395,12 @@ document.addEventListener('keydown',e=>{
  if(k==='f')toggleFS();else if(k==='o'&&DESK)toggleOBS();else if(!quiz)return;
  else if(k==='c')view==='contents'?showQuiz():showContents();
  else if(k==='g'&&view==='quiz')showRound();
+ else if(k==='t'&&view==='quiz')tmrToggle();
+ else if(k==='r'&&view==='quiz')tmrReset();
+ else if(k==='a'&&view==='quiz')toggleAuto();
  else if(k===' '||k==='enter'){e.preventDefault();if(view==='quiz')toggleAnswer();else if(view==='contents')showQuiz()}
  else if(k==='arrowright'||k==='pagedown'){e.preventDefault();if(view==='quiz')nextQ()}
- else if(k==='arrowleft'||k==='pageup'){e.preventDefault();if(view==='quiz')previousQ()}
+ else if(k==='arrowleft'||k==='pageup'){e.preventDefault();if(view==='quiz')previousQ();else if(view==='end')backFromEnd()}
 });
 
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b)b.blur()});
@@ -344,13 +429,15 @@ const OBS_CSS=`html,body{margin:0;height:100%;overflow:hidden;background:linear-
 .np .qr,.np .ar{justify-content:center;text-align:center}.np .ar{align-items:center}
 .c{align-items:center;justify-content:center;text-align:center;gap:calc(var(--u)*30)}
 .lg{height:calc(var(--u)*380)}.rn{font:calc(var(--u)*70)/1 var(--d);letter-spacing:.1em}.bt{font:calc(var(--u)*140)/1.05 var(--d);color:#FFD90E;text-transform:uppercase;overflow-wrap:anywhere}
-.st{box-shadow:0 0 calc(var(--u)*70) rgba(255,217,14,.2),inset 0 0 calc(var(--u)*90) rgba(255,217,14,.07)}.pl.y{background:linear-gradient(180deg,#ffe95a,#FFD90E 55%,#e0b800);box-shadow:inset 0 calc(var(--u)*2) 0 rgba(255,255,255,.6),inset 0 calc(var(--u)*-4) 0 rgba(0,0,0,.16)}.bt{text-shadow:0 0 calc(var(--u)*40) rgba(255,217,14,.35),0 calc(var(--u)*6) 0 rgba(0,0,0,.4)}.ar.pop .a{animation:fl .8s ease-out}.ar.pop .info{animation:ii .6s .25s both}@keyframes fl{0%{text-shadow:0 0 0 rgba(255,217,14,0);filter:brightness(1)}30%{text-shadow:0 0 calc(var(--u)*40) rgba(255,217,14,.9);filter:brightness(1.35)}100%{text-shadow:0 0 0 rgba(255,217,14,0);filter:brightness(1)}}@keyframes ii{from{opacity:0;transform:translateY(calc(var(--u)*10))}to{opacity:1;transform:none}}`;
+.st{box-shadow:0 0 calc(var(--u)*70) rgba(255,217,14,.2),inset 0 0 calc(var(--u)*90) rgba(255,217,14,.07)}.pl.y{background:linear-gradient(180deg,#ffe95a,#FFD90E 55%,#e0b800);box-shadow:inset 0 calc(var(--u)*2) 0 rgba(255,255,255,.6),inset 0 calc(var(--u)*-4) 0 rgba(0,0,0,.16)}.bt{text-shadow:0 0 calc(var(--u)*40) rgba(255,217,14,.35),0 calc(var(--u)*6) 0 rgba(0,0,0,.4)}.ar.pop .a{animation:fl .8s ease-out}.ar.pop .info{animation:ii .6s .25s both}@keyframes fl{0%{text-shadow:0 0 0 rgba(255,217,14,0);filter:brightness(1)}30%{text-shadow:0 0 calc(var(--u)*40) rgba(255,217,14,.9);filter:brightness(1.35)}100%{text-shadow:0 0 0 rgba(255,217,14,0);filter:brightness(1)}}@keyframes ii{from{opacity:0;transform:translateY(calc(var(--u)*10))}to{opacity:1;transform:none}}
+.pl.t{width:calc(var(--u)*200);padding:0;text-align:center;color:#050505;background:linear-gradient(rgba(5,5,5,.35),rgba(5,5,5,.35)) left bottom/var(--p,100%) calc(var(--u)*7) no-repeat,var(--base,#20C7D9)}.pl.t.warn{--base:#FFD90E}.pl.t.crit,.pl.t.done{--base:#ff4d4d;color:#fff;animation:tc .5s ease-in-out infinite alternate}@keyframes tc{to{filter:brightness(1.3)}}`;
 function obsHTML(jr){
  if(view==='contents')return `<div class="st c"><img class="lg" src="${document.querySelector('.lgimg').src}" alt=""><div class="bt">${esc(quiz.title||'')}</div></div>`;
+ if(view==='end')return `<div class="st c"><img class="lg" src="${document.querySelector('.lgimg').src}" alt=""><div class="bt">Thanks for playing</div></div>`;
  const r=quiz.rounds[roundIndex];
  if(view==='round')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">${esc(r.title)}</div></div>`;
  const q=r.questions[qIndex],M=quiz.media||{},im=q.image&&M[q.image]?`<img class="im" src="${M[q.image]}" alt="">`:'',as=authorSrc(q);
- return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${as?`<img class="au" src="${as}" alt="">`:''}<span class="pl y">${q.points||0} point${q.points==1?'':'s'}</span></span></div>
+ return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${tm.s!=='idle'?obsTmr():''}${as?`<img class="au" src="${as}" alt="">`:''}<span class="pl y">${q.points||0} point${q.points==1?'':'s'}</span></span></div>
  <div class="bd ${im?'':'np'}"><div class="lf"><div class="qr" id="qreg"><div class="q" id="qtxt">${esc(q.question)}</div></div><div class="ar ${revealed?(jr?'pop':''):'v'}" id="areg"><div class="a" id="atxt">${esc(q.answer)}</div>${q.info?`<div class="info">${esc(q.info)}</div>`:''}</div></div>${im}</div></div>`;
 }
 function obsBtnUpd(){document.getElementById('obsBtn').classList.toggle('hot',!!(obs&&!obs.closed))}
@@ -371,7 +458,7 @@ function openImporter(){document.getElementById('importModal').classList.remove(
 function closeImporter(){document.getElementById('importModal').classList.add('hidden')}
 document.getElementById('fileInput').addEventListener('change', async e=>{
  const f=e.target.files[0]; if(!f)return;
- try{const data=JSON.parse(await f.text());loadQuiz(data);closeImporter();e.target.value=''}
+ try{const data=JSON.parse(await f.text());loadQuiz(data);saveQuiz(data);closeImporter();e.target.value=''}
  catch(err){alert('Could not read this quiz package. For this first test it must contain JSON quiz data.')}
 });
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
