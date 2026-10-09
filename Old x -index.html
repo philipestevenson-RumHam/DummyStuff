@@ -170,37 +170,6 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .close.ghost{background:#eef1f6;color:var(--navy)}
 .close.danger{background:#b42318}
 .modalbox p.note{font-size:13px;margin:12px 0 0}
-.sin,.sc input{-webkit-user-select:text;user-select:text}
-.sc{max-width:1100px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px)}
-.sbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
-.schip{min-width:42px;height:34px;border-radius:999px;background:rgba(255,255,255,.1);color:#fff;border:1px solid var(--border);font-weight:900;font-size:13px;padding:0 12px}
-.schip.on{background:var(--yellow);color:var(--black);border-color:#d4b800}.schip.has::after{content:' \2713'}
-.cov{background:rgba(32,199,217,.25);color:#bff3f8}
-.tcl{display:inline-flex;align-items:center;gap:8px;font-weight:900;color:var(--cyan);text-transform:uppercase;font-size:12px;margin-left:8px}
-.tcl input,.sin{background:#fff;color:var(--black);border:2px solid transparent;border-radius:8px;font:900 20px Arial,sans-serif;text-align:center;padding:6px 4px}
-.tcl input{width:4.4em;font-size:16px}.sin{width:4.6em}.sin:focus,.tcl input:focus{outline:0;border-color:var(--cyan)}
-.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:8px}
-.srow{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:12px;padding:7px 12px}
-.sn{font-weight:900;width:5.2em;white-space:nowrap}.stot{margin-left:auto;font-weight:900;font-size:20px;color:var(--yellow)}
-.srank{min-width:3.2em;text-align:center;font-weight:900;font-size:13px;border-radius:999px;padding:4px 8px;background:rgba(255,255,255,.12)}.srank:empty{visibility:hidden}
-.srank.r1{background:#FFD90E;color:#050505}.srank.r2{background:#d9dfe8;color:#050505}.srank.r3{background:#cd7f32;color:#050505}
-.sbl{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px;text-align:left;margin:4px 0}
-.sbli{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:6px 12px;font-weight:900}
-.sbli b{width:1.8em;color:var(--cyan)}.sbli span{flex:1}.sbli em{font-style:normal;color:var(--yellow)}
-.sbli.win{background:linear-gradient(90deg,#ffe95a,#FFD90E);color:#050505;box-shadow:0 0 18px rgba(255,217,14,.5)}.sbli.win b,.sbli.win em{color:#050505}
-.sc{flex:1 1 auto;min-height:0}
-.sgrid{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-template-rows:repeat(var(--r),minmax(0,1fr));grid-template-columns:repeat(var(--c),minmax(0,1fr));gap:4px 12px;max-height:calc(var(--r)*60px)}
-.srow{padding:0 12px;min-height:0;overflow:hidden;gap:8px}
-.sin{align-self:stretch;height:auto;min-height:0;padding:0;border-radius:6px;font-size:clamp(11px,2.5vh,20px)}
-.sn{font-size:clamp(11px,2.3vh,16px)}.stot{font-size:clamp(12px,2.5vh,20px)}.srank{font-size:clamp(10px,1.9vh,13px);padding:2px 8px}
-.sc .rhead h1{font-size:clamp(20px,4.4vh,40px)}.sc .rhead,.sbar,.sc .controls{flex-shrink:0}
-.sbl{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-template-rows:repeat(var(--r),minmax(0,1fr));grid-template-columns:repeat(var(--c),minmax(0,1fr));gap:4px 12px;max-height:calc(var(--r)*60px);margin:0}
-.sbli{min-height:0;overflow:hidden;padding:0 12px;font-size:clamp(11px,2.4vh,19px)}.sbli span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.toc.fitt{flex:1 1 auto;flex-shrink:1;min-height:0}
-.board.fitb{display:flex;flex-direction:column;gap:clamp(6px,1.4vh,12px);padding:clamp(10px,2.2vh,28px) clamp(14px,3vw,36px);flex:1;min-height:0}
-.board.fitb h1{font-size:clamp(22px,5.4vh,52px)}.board.fitb .stats,.board.fitb .endbtns{flex-shrink:0}.board.fitb .stats .pill{font-size:clamp(11px,1.9vh,15px)}
-.board.fitb .go{margin-top:0;padding:clamp(7px,1.3vh,12px) clamp(18px,2.4vw,30px);font-size:clamp(12px,2vh,16px)}
-@media(max-width:600px){.sgrid{display:flex;flex-direction:column;max-height:none;flex:none}.srow{padding:6px 12px}.sin{height:36px;font-size:18px}}
 </style>
 </head>
 <body>
@@ -228,7 +197,7 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 
 <script>
 const dummy = {"format": "rumham-quiz", "version": 1, "title": "RumHam Dummy Test Quiz", "created": "2026-10-07", "rounds": [{"number": 1, "title": "General Knowledge", "questions": [{"number": 1, "category": "General", "question": "What is the capital city of Australia?", "answer": "Canberra", "points": 1, "info": "Canberra became Australia's capital in 1913.", "author": "RumHam"}, {"number": 2, "category": "Science", "question": "What planet is known as the Red Planet?", "answer": "Mars", "points": 1, "info": "Mars gets its reddish appearance from iron oxide on its surface.", "author": "RumHam"}, {"number": 3, "category": "Food", "question": "What is the main ingredient in traditional hummus?", "answer": "Chickpeas", "points": 1, "info": "Traditional hummus is made primarily from cooked chickpeas and tahini.", "author": "RumHam"}, {"number": 4, "category": "Film", "question": "Which film features the character Jack Sparrow?", "answer": "Pirates of the Caribbean", "points": 2, "info": "Johnny Depp played Captain Jack Sparrow.", "author": "RumHam"}, {"number": 5, "category": "Music", "question": "Which band recorded the song 'Dancing Queen'?", "answer": "ABBA", "points": 1, "info": "Dancing Queen was released by ABBA in 1976.", "author": "RumHam"}, {"number": 6, "category": "Sport", "question": "How many players are on the field for one football team at the start of a match?", "answer": "11", "points": 1, "info": "A standard association football team starts with eleven players.", "author": "RumHam"}]}, {"number": 2, "title": "80s & 90s", "questions": [{"number": 1, "category": "Music", "question": "Which singer released the album 'Like a Prayer' in 1989?", "answer": "Madonna", "points": 1, "info": "Like a Prayer was Madonna's fourth studio album.", "author": "RumHam"}, {"number": 2, "category": "TV", "question": "What was the name of the coffee shop in Friends?", "answer": "Central Perk", "points": 1, "info": "Central Perk was the fictional coffee shop frequently visited by the main characters.", "author": "RumHam"}, {"number": 3, "category": "Film", "question": "Who played the title character in Mrs Doubtfire?", "answer": "Robin Williams", "points": 2, "info": "Robin Williams played Daniel Hillard / Mrs Doubtfire.", "author": "RumHam"}, {"number": 4, "category": "Technology", "question": "Which company created the Windows operating system?", "answer": "Microsoft", "points": 1, "info": "Microsoft developed Windows as its family of operating systems.", "author": "RumHam"}]}, {"number": 3, "title": "Picture Round", "questions": [{"number": 1, "category": "Picture", "question": "Dummy picture question \u2014 this is where an image will appear.", "answer": "Example Image Answer", "points": 1, "info": "Image support will be added to the package format.", "author": "RumHam", "isPicture": true}, {"number": 2, "category": "Picture", "question": "Dummy second picture question \u2014 test navigation between picture questions.", "answer": "Second Image Answer", "points": 1, "info": "This is dummy data for testing.", "author": "RumHam", "isPicture": true}]}]};
-let quiz = null, roundIndex=0, qIndex=0, revealed=false, completed=new Set(), view='contents', entered=false, justRevealed=false, scores={}, teams=10, scoreR=0, obsScore=null, obsLast='';
+let quiz = null, roundIndex=0, qIndex=0, revealed=false, completed=new Set(), view='contents', entered=false, justRevealed=false;
 
 const au=new Audio();let lastKey='';
 function refreshBtns(){document.querySelectorAll('.pbtn').forEach(b=>b.textContent=(!au.paused&&au.dataset.n===b.dataset.n)?'\u275A\u275A':'\u25B6')}
@@ -260,7 +229,7 @@ function saveQuiz(data){
  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
  return kv('readwrite',st=>{st.put(data,'quiz');st.delete('state')}).catch(()=>alert('This quiz could not be saved in the browser (storage may be full), so it will not reopen after a reload.'))}
 let stT=0;
-function saveState(){if(!quiz||quiz===dummy)return;kvSet('state',{v:1,k:qKey(),roundIndex,qIndex,view,entered,revealed,completed:[...completed],scores,teams,scoreR}).catch(()=>{})}
+function saveState(){if(!quiz||quiz===dummy)return;kvSet('state',{v:1,k:qKey(),roundIndex,qIndex,view,entered,revealed,completed:[...completed]}).catch(()=>{})}
 function saveSoon(){clearTimeout(stT);stT=setTimeout(saveState,250)}
 function flushState(){clearTimeout(stT);saveState()}
 addEventListener('pagehide',flushState);
@@ -270,10 +239,9 @@ function restoreState(st){
  const R=quiz.rounds;if(!(st.roundIndex>=0&&st.roundIndex<R.length))return;
  if(!(st.qIndex>=0&&st.qIndex<R[st.roundIndex].questions.length))return;
  roundIndex=st.roundIndex;qIndex=st.qIndex;
- view=['contents','round','quiz','end','score'].includes(st.view)?st.view:'contents';
+ view=['contents','round','quiz','end'].includes(st.view)?st.view:'contents';
  entered=!!st.entered;revealed=!!st.revealed&&view==='quiz';
  completed=new Set((st.completed||[]).filter(x=>typeof x==='string'));
- scores=st.scores&&typeof st.scores==='object'?st.scores:{};teams=Math.max(1,Math.min(30,(st.teams|0)||10));scoreR=Math.max(0,Math.min(R.length,st.scoreR|0));
  renderRounds();render()}
 async function init(){
  let saved,st,se;
@@ -285,7 +253,7 @@ async function init(){
 function resetProgress(){if(!confirm('Reset progress? The quiz stays loaded and returns to the title screen.'))return;closeImporter();loadQuiz(quiz)}
 function clearSaved(){if(!confirm('Remove the saved quiz and your progress from this browser? You can import the quiz again later.'))return;kv('readwrite',st=>{st.delete('quiz');st.delete('state')}).catch(()=>{});closeImporter();loadQuiz(dummy)}
 function loadQuiz(data){
- quiz=data; au.pause();lastKey='';tm={s:'idle',left:TMR_MS,end:0};roundIndex=0;qIndex=0;revealed=false;completed=new Set();view='contents';entered=false;scores={};teams=10;scoreR=0;obsScore=null;
+ quiz=data; au.pause();lastKey='';tm={s:'idle',left:TMR_MS,end:0};roundIndex=0;qIndex=0;revealed=false;completed=new Set();view='contents';entered=false;
  document.getElementById('quizTitle').textContent=data.title||'RumHam Quiz';
  renderRounds(); render(); prepAuthors();
 }
@@ -296,12 +264,11 @@ function renderRounds(){
  tb.innerHTML='Contents<small>'+quiz.rounds.length+' rounds</small>';tb.onclick=showContents;el.appendChild(tb);
  const st=document.createElement('div');st.className='side-title';st.textContent='Rounds';el.appendChild(st);
  quiz.rounds.forEach((r,i)=>{
-   const b=document.createElement('button'); b.className='round-btn '+(view!=='contents'&&view!=='end'&&view!=='score'&&i===roundIndex?'active':'');
+   const b=document.createElement('button'); b.className='round-btn '+(view!=='contents'&&view!=='end'&&i===roundIndex?'active':'');
    b.innerHTML='Round '+r.number+' — '+esc(r.title)+'<small>'+r.questions.length+' questions</small>'+sbar(i);
    b.onclick=()=>openRound(i);
    el.appendChild(b);
  });
- const sb=document.createElement('button');sb.className='round-btn '+(view==='score'?'active':'');sb.innerHTML='Scores<small>'+Object.keys(scores).length+' of '+quiz.rounds.length+' entered</small>';sb.onclick=()=>openScores();el.appendChild(sb);
  const a=el.querySelector('.active');if(a&&a.scrollIntoView)a.scrollIntoView({block:'nearest',inline:'nearest'});
 }
 function fitReg(reg,apply,lo,hi){while(lo<hi){const m=Math.ceil((lo+hi)/2);apply(m);if(reg.scrollHeight<=reg.clientHeight+1&&reg.scrollWidth<=reg.clientWidth+1)lo=m;else hi=m-1}apply(lo)}
@@ -337,8 +304,8 @@ function tmrReset(){if(tm.s==='idle')return;tm={s:'idle',left:TMR_MS,end:0};tmrP
 setInterval(()=>{if(tm.s!=='run')return;if(tmrLeft()<=0){tm.s='done';tm.left=0}tmrPaint()},100);
 let lastRK='';
 function render(){const jr=justRevealed;
- const rk=view+'|'+roundIndex+'|'+(view==='quiz'?qIndex:view==='score'?'s'+scoreR:'');const chg=rk!==lastRK;
- if(chg){lastRK=rk;obsScore=null;tm={s:'idle',left:TMR_MS,end:0};if(autoTimer&&!noAuto&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:TMR_MS,end:Date.now()+TMR_MS}}
+ const rk=view+'|'+roundIndex+'|'+(view==='quiz'?qIndex:'');const chg=rk!==lastRK;
+ if(chg){lastRK=rk;tm={s:'idle',left:TMR_MS,end:0};if(autoTimer&&!noAuto&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:TMR_MS,end:Date.now()+TMR_MS}}
  renderMain();
  if(chg){const c=document.getElementById('content');c.classList.remove('enter');void c.offsetWidth;c.classList.add('enter');clearTimeout(render.t);render.t=setTimeout(()=>c.classList.remove('enter'),view==='quiz'?300:1300)}
  obsSync(jr);saveSoon()}
@@ -348,7 +315,6 @@ function renderMain(){
  if(view==='contents'){renderContents();return}
  if(view==='round'){renderRound();return}
  if(view==='end'){renderEnd();return}
- if(view==='score'){renderScore();return}
  const r=quiz.rounds[roundIndex], q=r.questions[qIndex];
  const M=quiz.media||{}, mk=roundIndex+'-'+qIndex; if(mk!==lastKey){au.pause();lastKey=mk}
  const img=q.image&&M[q.image]?`<img class="qimg" src="${M[q.image]}" alt="">`:'';
@@ -375,7 +341,7 @@ function renderMain(){
  <div class="controls">
    <button class="control" onclick="previousQ()" ${qIndex===0?'disabled':''}>\u2190 PREVIOUS${kh('\u2190')}</button>
    <button class="control reveal" onclick="toggleAnswer()">${revealed?'HIDE ANSWER':'SHOW ANSWER'}${kh('Space')}</button>
-   <button class="control primary" onclick="nextQ()">${qIndex<r.questions.length-1?'NEXT \u2192':'SCORES \u2192'}${kh('\u2192')}</button>
+   <button class="control primary" onclick="nextQ()">${qIndex<r.questions.length-1?'NEXT \u2192':roundIndex<quiz.rounds.length-1?'NEXT ROUND \u2192':'FINISH &#10003;'}${kh('\u2192')}</button>
    <button class="control" onclick="showRound()">&#9638; GRID${kh('G')}</button>
  </div>
  <div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 ${DESK?'Space show/hide \u00B7 \u2190 \u2192 move \u00B7 G grid \u00B7 T timer \u00B7 A auto \u00B7 C contents \u00B7 O OBS screen':'Quiz data is held locally in this browser'}</div>`;
@@ -404,11 +370,10 @@ function renderRound(){
 function showEnd(){view='end';au.pause();lastKey='';entered=true;renderRounds();render()}
 function backFromEnd(){view='quiz';renderRounds();render()}
 function renderEnd(){
- const R=quiz.rounds,nq=R.reduce((a,r)=>a+r.questions.length,0),pts=R.reduce((a,r)=>a+sumPts(r),0),last=R.length-1,any=hasScores(last),on=obsBoardOn(),lay=layoutOf(teams);
- let list='';if(any){list=`<div class="sbl" style="--r:${lay.r};--c:${lay.c}">`+standings(last).srt.map(x=>`<div class="sbli ${x.p===1?'win':''}"><b>${x.p}</b><span>Team ${x.t+1}</span><em>${x.s}</em></div>`).join('')+'</div>'}
- document.getElementById('content').innerHTML=`<div class="toc ${any?'fitt':''}"><div class="board ${any?'fitb':''}"><h1>That's the quiz!</h1>${list}
+ const R=quiz.rounds,nq=R.reduce((a,r)=>a+r.questions.length,0),pts=R.reduce((a,r)=>a+sumPts(r),0);
+ document.getElementById('content').innerHTML=`<div class="toc"><div class="board"><h1>That's the quiz!</h1>
   <div class="stats"><span class="pill">${plural(R.length,'round')}</span><span class="pill">${plural(nq,'question')}</span><span class="pill">${plural(pts,'point')} in total</span></div>
-  <div class="endbtns">${any&&DESK?`<button class="go" onclick="${on?'hideScoreObs()':'showScoreObs(true)'}">${on?'Hide from OBS':'Show final scores on OBS'}</button>`:''}<button class="go alt" onclick="restartQuiz()">Back to start</button><button class="go alt" onclick="showContents()">Review rounds</button></div></div></div>`}
+  <div class="endbtns"><button class="go" onclick="loadQuiz(quiz)">Back to start</button><button class="go alt" onclick="showContents()">Review rounds</button></div></div></div>`}
 function showRound(){view='round';au.pause();lastKey='';renderRounds();render()}
 function openQ(i){qIndex=i;revealed=false;view='quiz';renderRounds();render()}
 function showContents(){view='contents';au.pause();lastKey='';renderRounds();render()}
@@ -416,7 +381,7 @@ function showQuiz(){view=entered?'quiz':'round';entered=true;renderRounds();rend
 function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=true;renderRounds();render()}
 function goQ(i){qIndex=i;revealed=false;render()}
 function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}renderRounds();render()}
-function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;revealed=false;render()}else openScores(roundIndex)}
+function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;revealed=false;render()}else if(roundIndex<R.length-1)openRound(roundIndex+1);else showEnd()}
 function previousQ(){if(qIndex>0){qIndex--;revealed=false;render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
@@ -434,8 +399,8 @@ document.addEventListener('keydown',e=>{
  else if(k==='r'&&view==='quiz')tmrReset();
  else if(k==='a'&&view==='quiz')toggleAuto();
  else if(k===' '||k==='enter'){e.preventDefault();if(view==='quiz')toggleAnswer();else if(view==='contents')showQuiz()}
- else if(k==='arrowright'||k==='pagedown'){e.preventDefault();if(view==='quiz')nextQ();else if(view==='score')afterScores()}
- else if(k==='arrowleft'||k==='pageup'){e.preventDefault();if(view==='quiz')previousQ();else if(view==='end')backFromEnd();else if(view==='score')backFromScores()}
+ else if(k==='arrowright'||k==='pagedown'){e.preventDefault();if(view==='quiz')nextQ()}
+ else if(k==='arrowleft'||k==='pageup'){e.preventDefault();if(view==='quiz')previousQ();else if(view==='end')backFromEnd()}
 });
 
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b)b.blur()});
@@ -467,11 +432,9 @@ const OBS_CSS=`html,body{margin:0;height:100%;overflow:hidden;background:linear-
 .st{box-shadow:0 0 calc(var(--u)*70) rgba(255,217,14,.2),inset 0 0 calc(var(--u)*90) rgba(255,217,14,.07)}.pl.y{background:linear-gradient(180deg,#ffe95a,#FFD90E 55%,#e0b800);box-shadow:inset 0 calc(var(--u)*2) 0 rgba(255,255,255,.6),inset 0 calc(var(--u)*-4) 0 rgba(0,0,0,.16)}.bt{text-shadow:0 0 calc(var(--u)*40) rgba(255,217,14,.35),0 calc(var(--u)*6) 0 rgba(0,0,0,.4)}.ar.pop .a{animation:fl .8s ease-out}.ar.pop .info{animation:ii .6s .25s both}@keyframes fl{0%{text-shadow:0 0 0 rgba(255,217,14,0);filter:brightness(1)}30%{text-shadow:0 0 calc(var(--u)*40) rgba(255,217,14,.9);filter:brightness(1.35)}100%{text-shadow:0 0 0 rgba(255,217,14,0);filter:brightness(1)}}@keyframes ii{from{opacity:0;transform:translateY(calc(var(--u)*10))}to{opacity:1;transform:none}}
 .pl.t{width:calc(var(--u)*200);padding:0;text-align:center;color:#050505;background:linear-gradient(rgba(5,5,5,.35),rgba(5,5,5,.35)) left bottom/var(--p,100%) calc(var(--u)*7) no-repeat,var(--base,#20C7D9)}.pl.t.warn{--base:#FFD90E}.pl.t.crit,.pl.t.done{--base:#ff4d4d;color:#fff;animation:tc .5s ease-in-out infinite alternate}@keyframes tc{to{filter:brightness(1.3)}}`;
 function obsHTML(jr){
- if(obsScore&&(view==='score'||view==='end')){const f=obsScore.final,sd=standings(f?quiz.rounds.length-1:scoreR);return boardHTML(f?'Final scores':'Scores after Round '+esc(quiz.rounds[scoreR].number),sd.srt,f)}
  if(view==='contents')return `<div class="st c"><img class="lg" src="${document.querySelector('.lgimg').src}" alt=""><div class="bt">${esc(quiz.title||'')}</div></div>`;
  if(view==='end')return `<div class="st c"><img class="lg" src="${document.querySelector('.lgimg').src}" alt=""><div class="bt">Thanks for playing</div></div>`;
-  const r=quiz.rounds[roundIndex];
- if(view==='score')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">Complete</div></div>`;
+ const r=quiz.rounds[roundIndex];
  if(view==='round')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">${esc(r.title)}</div></div>`;
  const q=r.questions[qIndex],M=quiz.media||{},im=q.image&&M[q.image]?`<img class="im" src="${M[q.image]}" alt="">`:'',as=authorSrc(q);
  return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${tm.s!=='idle'?obsTmr():''}${as?`<img class="au" src="${as}" alt="">`:''}<span class="pl y">${q.points||0} point${q.points==1?'':'s'}</span></span></div>
@@ -479,17 +442,16 @@ function obsHTML(jr){
 }
 function obsBtnUpd(){document.getElementById('obsBtn').classList.toggle('hot',!!(obs&&!obs.closed))}
 function toggleOBS(){
- obsLast='';
- if(obs&&!obs.closed){obs.close();obs=null;obsScore=null;obsBtnUpd();return}
+ if(obs&&!obs.closed){obs.close();obs=null;obsBtnUpd();return}
  obs=window.open('','rumham-obs','popup=yes,width=1280,height=720');
  if(!obs){alert('The OBS window was blocked. Allow pop-ups for this page, then try again.');return}
- const d=obs.document;d.open();d.write('<!DOCTYPE html><meta charset="utf-8"><title>RumHam OBS</title><style>'+OBS_CSS+OBS_CSS2+'</style><div id="stage"></div>');d.close();
+ const d=obs.document;d.open();d.write('<!DOCTYPE html><meta charset="utf-8"><title>RumHam OBS</title><style>'+OBS_CSS+'</style><div id="stage"></div>');d.close();
  obs.addEventListener('resize',()=>obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight)));
  d.addEventListener('dblclick',()=>{const o=obs.document,el=o.documentElement,on=o.fullscreenElement||o.webkitFullscreenElement;try{on?(o.exitFullscreen||o.webkitExitFullscreen).call(o):(el.requestFullscreen||el.webkitRequestFullscreen).call(el)}catch(e){}});
  obsBtnUpd();obsSync(false)}
 function obsSync(jr){if(!obs)return;if(obs.closed){obs=null;obsBtnUpd();return}
  const st=obs.document.getElementById('stage');if(!st||!quiz)return;
- const h=obsHTML(jr);if(obsScore){if(h===obsLast)return;obsLast=h}else obsLast='';st.innerHTML=h;obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
+ st.innerHTML=obsHTML(jr);obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
 setInterval(()=>{if(obs&&obs.closed){obs=null;obsBtnUpd()}},1000);
 addEventListener('beforeunload',()=>{if(obs&&!obs.closed)obs.close()});
 function openImporter(){document.getElementById('importModal').classList.remove('hidden')}
@@ -501,67 +463,6 @@ document.getElementById('fileInput').addEventListener('change', async e=>{
 });
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 ['gesturestart','gesturechange','gestureend'].forEach(e=>document.addEventListener(e,ev=>ev.preventDefault()));
-const OBS_CSS2=`.sbT{font:calc(var(--u)*92)/1 var(--d);color:#FFD90E;text-transform:uppercase;text-align:center;letter-spacing:.04em;flex-shrink:0;padding-bottom:calc(var(--u)*22)}
-.sbG{flex:1;min-height:0;display:grid;grid-auto-flow:column;gap:calc(var(--u)*8) calc(var(--u)*44);align-content:start;overflow:hidden}
-.sbR{display:flex;align-items:center;gap:calc(var(--u)*20);padding:0 calc(var(--u)*24);border-radius:calc(var(--u)*14);background:rgba(255,255,255,.1);font:calc(var(--rh)*.6)/1 var(--d);letter-spacing:.03em;min-width:0;animation:sbdrop cubic-bezier(.25,1.35,.5,1) both}
-.sbB{flex:none;width:calc(var(--rh)*.86);height:calc(var(--rh)*.86);border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.2);font-size:.8em}
-.g1 .sbB{background:linear-gradient(180deg,#ffe95a,#e0b800);color:#050505}.g2 .sbB{background:linear-gradient(180deg,#f2f5fa,#aeb8c6);color:#050505}.g3 .sbB{background:linear-gradient(180deg,#e9a566,#b36a24);color:#050505}
-.g1{box-shadow:inset calc(var(--u)*10) 0 0 #FFD90E}.g2{box-shadow:inset calc(var(--u)*10) 0 0 #d9dfe8}.g3{box-shadow:inset calc(var(--u)*10) 0 0 #cd7f32}
-.sbN{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sbP{color:#FFD90E}
-.sbR.win{background:linear-gradient(90deg,#ffe95a,#FFD90E 60%,#e0b800);color:#050505;box-shadow:0 0 calc(var(--u)*60) rgba(255,217,14,.8)}.sbR.win .sbP{color:#050505}
-@keyframes sbdrop{from{transform:translateY(calc(var(--u)*-1100));opacity:0}15%{opacity:1}to{transform:none;opacity:1}}`;
-function standings(up){const rows=[];for(let t=0;t<teams;t++){let v=0;for(let i=0;i<=up;i++){const e=scores[i];if(e&&e.v[t]!=null)v+=+e.v[t]}rows.push({t,s:Math.round(v*100)/100})}
- const srt=[...rows].sort((a,b)=>b.s-a.s||a.t-b.t);let p=0;srt.forEach((x,i)=>{if(i===0||x.s!==srt[i-1].s)p=i+1;x.p=p});return{rows,srt}}
-const layoutOf=n=>({r:Math.min(n,15),c:n>15?2:1});
-const hasScores=up=>Object.keys(scores).some(k=>+k<=up);
-const ord=n=>{const q=['th','st','nd','rd'],v=n%100;return n+(q[(v-20)%10]||q[v]||q[0])};
-const obsBoardOn=()=>!!(obsScore&&obs&&!obs.closed);
-function fromOf(r){let f=r;while(f>0&&!scores[f-1])f--;return f}
-function boardHTML(title,srt,final){
- const n=srt.length,rowsN=Math.min(n,15),cols=n>15?2:1,rh=Math.min(92,Math.floor(760/rowsN)-8),del=new Array(n);
- del[n-1]=0;for(let i=n-2;i>=0;i--)del[i]=del[i+1]+(srt[i].p<=3?1300:140);
- const rows=srt.map((x,i)=>{const top=x.p<=3;return `<div class="sbR ${top?'g'+x.p:''} ${final&&x.p===1?'win':''}" style="animation-delay:${del[i]}ms;animation-duration:${top?900:450}ms"><span class="sbB">${x.p}</span><span class="sbN">Team ${x.t+1}</span><span class="sbP">${x.s}</span></div>`}).join('');
- return `<div class="st"><div class="sbT">${title}</div><div class="sbG" style="--rh:calc(var(--u)*${rh});grid-template-rows:repeat(${rowsN},var(--rh));grid-template-columns:repeat(${cols},1fr)">${rows}</div></div>`}
-function openScores(r){scoreR=r==null?roundIndex:r;view='score';au.pause();lastKey='';entered=true;renderRounds();render()}
-function afterScores(){if(scoreR<quiz.rounds.length-1)openRound(scoreR+1);else showEnd()}
-function backFromScores(){if(scoreR>=quiz.rounds.length){openScores(quiz.rounds.length-1);return}
- roundIndex=scoreR;qIndex=quiz.rounds[scoreR].questions.length-1;revealed=false;view='quiz';renderRounds();render()}
-function restartQuiz(){const sc=scores,t=teams;loadQuiz(quiz);scores=sc;teams=t;saveSoon();renderRounds()}
-function showScoreObs(final){if(!(obs&&!obs.closed))toggleOBS();if(!obs)return;obsScore={final:!!final};render()}
-function hideScoreObs(){obsScore=null;render()}
-function setTeams(v){teams=Math.max(1,Math.min(30,Math.round(+v)||teams));saveSoon();renderRounds();render()}
-function updScore(){const sd=standings(scoreR),any=hasScores(scoreR);
- sd.rows.forEach(x=>{const row=document.getElementById('sr'+x.t);if(!row)return;row.querySelector('.stot').textContent=any?x.s:'\u2013';const k=row.querySelector('.srank');k.textContent=any?ord(x.p):'';k.className='srank'+(any&&x.p<=3?' r'+x.p:'')})}
-function renderScore(){
- const R=quiz.rounds,fin=scoreR>=R.length,r=R[Math.min(scoreR,R.length-1)],ent=scores[scoreR],from=ent?ent.from:fromOf(scoreR),last=scoreR===R.length-1,on=obsBoardOn(),lay=layoutOf(teams);
- const chips=R.map((x,i)=>`<button class="schip ${i===scoreR?'on':''} ${scores[i]?'has':''}" onclick="openScores(${i})" aria-label="Round ${esc(x.number)} scores">R${esc(x.number)}</button>`).join('')+`<button class="schip ${fin?'on':''}" onclick="openScores(${R.length})">Final</button>`;
- const cov=!fin&&from<scoreR?`<span class="pill cov">Covers Rounds ${esc(R[from].number)}\u2013${esc(r.number)}</span>`:'';
- const tc=`<label class="tcl">Teams <input id="tcount" type="number" min="1" max="30" inputmode="numeric" value="${teams}" onchange="setTeams(this.value)"></label>`;
- const obsBtn=(f)=>DESK?`<button class="control reveal" onclick="${on?'hideScoreObs()':'showScoreObs('+f+')'}">${on?'HIDE FROM OBS':f?'SHOW FINAL ON OBS':'SHOW ON OBS'}</button>`:'';
- let h,body,ctl;
- if(fin){
-  const any=hasScores(R.length-1);h='Final scores';
-  body=any?`<div class="sbl" style="--r:${lay.r};--c:${lay.c}">`+standings(R.length-1).srt.map(x=>`<div class="sbli ${x.p===1?'win':''}"><b>${x.p}</b><span>Team ${x.t+1}</span><em>${x.s}</em></div>`).join('')+'</div>':'<p class="status">No scores entered yet.</p>';
-  ctl=`<button class="control" onclick="backFromScores()">\u2190 PREVIOUS</button>${any?obsBtn(true):''}<button class="control primary" onclick="afterScores()">FINISH &#10003;</button>`;
- }else{
-  h='Scores after Round '+esc(r.number);
-  body=`<div class="sgrid" style="--r:${lay.r};--c:${lay.c}">`+Array.from({length:teams},(_,t)=>{const v=ent&&ent.v[t]!=null?ent.v[t]:'';return `<label class="srow" id="sr${t}"><span class="sn">Team ${t+1}</span><input class="sin" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" data-t="${t}" value="${v}" aria-label="Team ${t+1} points"><span class="stot"></span><span class="srank"></span></label>`}).join('')+'</div>';
-  ctl=`<button class="control" onclick="backFromScores()">\u2190 PREVIOUS</button><button class="control" onclick="afterScores()">SKIP SCORES</button>${obsBtn(false)}<button class="control primary" onclick="afterScores()">${last?'FINISH &#10003;':'NEXT ROUND \u2192'}</button>`;
- }
- document.getElementById('content').innerHTML=`<div class="sc"><div class="rhead"><h1>${h}</h1></div><div class="sbar">${chips}${cov}${tc}</div>${body}<div class="controls">${ctl}</div></div>`;
- if(!fin)updScore()}
-(function(){const c=document.getElementById('content');
- c.addEventListener('input',e=>{const el=e.target;if(!el.classList||!el.classList.contains('sin'))return;
-  const v=el.value.replace(/[^0-9.\-]/g,'');if(v!==el.value)el.value=v;
-  const t=+el.dataset.t;let n=parseFloat(v);if(isNaN(n))n=null;let en=scores[scoreR];
-  if(n==null){if(en){en.v[t]=null;if(!en.v.some(x=>x!=null))delete scores[scoreR]}}
-  else{if(!en)en=scores[scoreR]={from:fromOf(scoreR),v:Array(30).fill(null)};en.v[t]=n}
-  updScore();saveSoon()});
- c.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const el=e.target;
-  if(el.id==='tcount'){e.preventDefault();el.blur();return}
-  if(!el.classList||!el.classList.contains('sin'))return;e.preventDefault();
-  const all=[...c.querySelectorAll('.sin')],nx=all[all.indexOf(el)+1];if(nx){nx.focus();nx.select()}else el.blur()});
-})();
 init();
 </script>
 </body>
