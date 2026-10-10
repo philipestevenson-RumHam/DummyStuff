@@ -73,7 +73,7 @@ async function rpc(fn, args) {
   return j;
 }
 
-let me = null, timer = 0, errs = 0, sig = '', lastS = null, pend = null, pendQ = null;
+let flying = false, me = null, timer = 0, errs = 0, sig = '', lastS = null, pend = null, pendQ = null;
 try { me = JSON.parse(localStorage.getItem('rh_team') || 'null'); } catch (e) {}
 const wantRoom = (Q.get('r') || '').toUpperCase();
 if (me && wantRoom && me.room !== wantRoom) me = null;
@@ -126,6 +126,7 @@ function draw(s) {
   const m = s.me || {};
   if (m.valid === false) { me = null; saveMe(); joinView('You are no longer in this room. Join again.'); return; }
   if (pendQ !== null && pendQ !== s.qkey) { pend = null; pendQ = null; }
+  if (!flying && pend && !m.letter) { pend = null; pendQ = null; }
   const L = m.letter || (pendQ === s.qkey ? pend : null);
   const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a].join('|');
   if (key === sig) return; sig = key;
@@ -175,11 +176,11 @@ app.addEventListener('click', e => {
 
 function tap(l) {
   if (pend || !lastS || lastS.state !== 'open') return;
-  pend = l; pendQ = lastS.qkey; sig = ''; draw(lastS);
+  pend = l; pendQ = lastS.qkey; flying = true; sig = ''; draw(lastS);
   if (navigator.vibrate) navigator.vibrate(25);
   rpc('submit_answer', { p_room: me.room, p_team: me.id, p_secret: me.secret, p_letter: l })
-    .then(r => { if (r && r.letter) pend = r.letter; sig = ''; poll(); })
-    .catch(e => { pend = null; pendQ = null; sig = ''; toast(e.message); poll(); });
+    .then(r => { flying = false; if (r && r.letter) pend = r.letter; sig = ''; poll(); })
+    .catch(e => { flying = false; pend = null; pendQ = null; sig = ''; toast(e.message); poll(); });
 }
 
 if (!SB_URL || !SB_KEY) app.innerHTML = '<div class="wrap"><h1>Not set up</h1><p class="err">Add the Supabase URL and key to the top of this file.</p></div>';

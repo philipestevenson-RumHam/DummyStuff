@@ -437,7 +437,7 @@ function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=
 function keepRev(){justRevealed=false;if(home.live){revealed=false;return}if(revealed)completed.add(roundIndex+'-'+qIndex)}
 function goQ(i){qIndex=i;keepRev();render()}
 function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live)homeReveal();if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
-function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
+function nextQ(){if(home.live&&view==='quiz'&&!revealed){toggleAnswer();return}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
 function previousQ(){if(qIndex>0){qIndex--;keepRev();render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
