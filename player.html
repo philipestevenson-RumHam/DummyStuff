@@ -25,14 +25,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .tot{font-weight:900;color:var(--yellow);white-space:nowrap}
 .main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px;width:100%;max-width:520px;margin:0 auto;text-align:center}
 .prompt{font-weight:900;font-size:18px;color:var(--soft)}
-.pad{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%}
-.k{aspect-ratio:1;border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(20px,6.4vw,30px);box-shadow:0 4px 0 #0a2250}
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:420px}
+.k{aspect-ratio:1;border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(22px,7vw,32px);box-shadow:0 4px 0 #0a2250}.k2{font-size:clamp(14px,4.4vw,20px)}
 .k:active{background:var(--yellow);color:var(--ink);transform:translateY(3px);box-shadow:0 1px 0 #0a2250}
-.lock{width:min(56vw,230px);aspect-ratio:1;border-radius:50%;background:var(--yellow);color:var(--ink);display:flex;align-items:center;justify-content:center;font:900 clamp(90px,34vw,150px)/1 Arial,sans-serif;box-shadow:0 0 50px rgba(255,217,14,.5)}
+.lock{width:min(40vw,170px);aspect-ratio:1;border-radius:50%;background:var(--yellow);color:var(--ink);display:flex;align-items:center;justify-content:center;font:900 clamp(60px,24vw,100px)/1 Arial,sans-serif;box-shadow:0 0 50px rgba(255,217,14,.5)}.lock.xy{font-size:clamp(34px,13vw,56px)}
 .lock.x{background:rgba(255,255,255,.12);color:#fff;font-size:70px;box-shadow:none}
 .cap{font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);font-size:20px}
 .sub{color:var(--soft);font-weight:700}
-.ans b{display:block;font-size:clamp(60px,22vw,110px);color:var(--yellow);line-height:1.05}
+.ans b{display:block;font-size:clamp(28px,9vw,48px);color:var(--yellow);line-height:1.1;margin:6px 0;word-break:break-word}
 .ans{font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.06em}
 .res{font-weight:900;font-size:30px;padding:10px 20px;border-radius:14px}
 .res.ok{background:rgba(46,204,113,.2);color:var(--green)}.res.bad{background:rgba(255,93,93,.18);color:var(--red)}.res.none{background:rgba(255,255,255,.1);color:var(--soft)}
@@ -40,6 +40,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .fast{list-style:none;margin:0;padding:0;font-weight:800;color:var(--soft)}.fast li{padding:2px 0}.fast b{color:#fff}
 .foot{padding:10px 16px;text-align:center}
 .foot button{background:none;color:var(--soft);text-decoration:underline;font-size:13px;padding:8px}
+.qc{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px 14px;font-weight:800;font-size:clamp(16px,4.6vw,22px);line-height:1.25;overflow-wrap:anywhere}
+.tm{font:900 clamp(26px,8vw,38px)/1 Arial,sans-serif;min-width:3.4em;padding:6px 18px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff}
+.tm:empty{display:none}.tm.warn{color:var(--yellow)}.tm.crit{background:var(--red);color:#fff}
 #net{position:fixed;left:0;right:0;top:0;background:var(--red);color:#fff;text-align:center;font-weight:900;font-size:13px;padding:4px;display:none;z-index:9}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;border-radius:999px;font-weight:800;display:none;z-index:9}
 </style>
@@ -109,41 +112,60 @@ async function poll() {
   timer = setTimeout(poll, 1000);
 }
 
+const showL = l => l === 'X' ? 'X/Y' : l;
+let tmr = { state: 'idle', left: 0, at: 0 };
 function keypad() {
+  const ks = []; for (const c of 'ABCDEFGHIJKLMNOPQRSTUVW') ks.push([c, c]); ks.push(['X', 'X/Y']); ks.push(['Z', 'Z']);
   return `<div class="prompt">Tap the first letter of the answer</div><div class="pad">` +
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => `<button class="k" data-l="${l}">${l}</button>`).join('') + '</div>';
+    ks.map(([v, t]) => `<button class="k${t.length > 1 ? ' k2' : ''}" data-l="${v}">${t}</button>`).join('') + '</div>';
 }
 
 function draw(s) {
   lastS = s;
+  if (s.timer) tmr = { state: s.timer.state, left: +s.timer.left || 0, at: performance.now() };
   const m = s.me || {};
   if (m.valid === false) { me = null; saveMe(); joinView('You are no longer in this room. Join again.'); return; }
   if (pendQ !== null && pendQ !== s.qkey) { pend = null; pendQ = null; }
   const L = m.letter || (pendQ === s.qkey ? pend : null);
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a].join('|');
   if (key === sig) return; sig = key;
 
-  let body;
+  const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : '';
+  const lock = l => `<div class="lock ${l === 'X' ? 'xy' : ''}">${esc(showL(l))}</div>`;
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
+  let body;
   if (s.state === 'open') {
-    body = L ? `<div class="lock">${esc(L)}</div><div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : keypad();
+    body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : keypad());
   } else if (s.state === 'closed') {
-    body = L ? `<div class="lock">${esc(L)}</div><div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
-             : `<div class="lock x">&#9201;</div><div class="cap">Time's up</div><div class="sub">No answer from you</div>`;
+    body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
+             : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`);
   } else if (s.state === 'revealed') {
-    const ans = (s.correct || []).join(' / ') || '?';
+    const letters = (s.correct || []).map(showL).join(' / ');
     let res;
     if (!m.letter) res = `<div class="res none">No answer</div>`;
     else if (m.ok) res = `<div class="res ok">&#10003; Correct +${m.points}</div>` + (m.bonus ? `<div class="bonus">Includes +${m.bonus} speed bonus!</div>` : '') + (secs ? `<div class="sub">${secs}</div>` : '');
-    else res = `<div class="res bad">&#10007; You chose ${esc(m.letter)}</div>`;
+    else res = `<div class="res bad">&#10007; You chose ${esc(showL(m.letter))}</div>`;
     const f = (s.fastest || []).map(x => `<li><b>${esc(x.name)}</b> +${x.bonus}</li>`).join('');
-    body = `<div class="ans">The answer is<b>${esc(ans)}</b></div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
+    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
   } else {
     body = `<div class="lock x">&hellip;</div><div class="cap">Get ready</div><div class="sub">Waiting for the next question</div>`;
   }
   app.innerHTML = `<header><span class="tn">${esc(me.name)}</span><span class="tot">${m.total || 0} pts &middot; #${m.rank || '-'}</span></header>
     <div class="main">${body}</div><div class="foot"><button id="lv">Not your team? Leave</button></div>`;
+  tickTimer();
 }
+
+function tickTimer() {
+  const el = $('tmr'); if (!el) return;
+  let t = '', c = 'tm'; const st = tmr.state;
+  if (st === 'run') {
+    const rem = Math.max(0, tmr.left - (performance.now() - tmr.at)), sec = Math.ceil(rem / 1000);
+    t = rem <= 0 ? 'TIME UP' : String(sec); c += sec <= 5 ? ' crit' : sec <= 10 ? ' warn' : '';
+  } else if (st === 'pause') t = '\u275A\u275A ' + Math.ceil(tmr.left / 1000);
+  else if (st === 'done' || (lastS && lastS.state === 'closed')) { t = 'TIME UP'; c += ' crit'; }
+  el.textContent = t; el.className = c;
+}
+setInterval(tickTimer, 200);
 
 app.addEventListener('click', e => {
   const k = e.target.closest && e.target.closest('.k');
