@@ -288,7 +288,6 @@ function restoreState(st){
 async function init(){
  let saved,st,se;
  try{[saved,st,se]=await Promise.race([Promise.all([kvGet('quiz'),kvGet('state'),kvGet('settings')]),new Promise(r=>setTimeout(()=>r([]),1500))])}catch(e){}
- if(se&&typeof se.auto==='boolean')autoTimer=se.auto;
  noAuto=true;
  if(saved&&Array.isArray(saved.rounds)&&saved.rounds.length){loadQuiz(saved);restoreState(st)}else loadQuiz(dummy);
  noAuto=false}
@@ -334,7 +333,7 @@ function tmrFace(){const l=tmrLeft(),sec=Math.ceil(l/1000),st=tm.s;
  return{t,c,p:(st==='idle'?100:l/TMR_MS*100).toFixed(1)+'%'}}
 function tmrApply(el,base){if(!el)return;const f=tmrFace();el.textContent=f.t;el.className=base+' '+f.c;el.style.setProperty('--p',f.p)}
 function tmrPaint(){tmrApply(document.getElementById('tmr'),'tmr');if(obs&&!obs.closed)tmrApply(obs.document.getElementById('otm'),'pl t')}
-function tmrBtn(){const f=tmrFace();return `<button class="tmr ${f.c}" id="tmr" style="--p:${f.p}" onclick="tmrToggle()" title="Question timer (T)" aria-label="Question timer">${f.t}</button><button class="tmr-auto ${autoTimer?'on':''}" id="tauto" onclick="toggleAuto()" aria-pressed="${autoTimer}" title="Auto-start the timer when a question appears (A)">AUTO</button>`}
+function tmrBtn(){const f=tmrFace();return `<button class="tmr ${f.c}" id="tmr" style="--p:${f.p}" onclick="tmrToggle()" title="Question timer (T)" aria-label="Question timer">${f.t}</button>`}
 function toggleAuto(){autoTimer=!autoTimer;const b=document.getElementById('tauto');if(b){b.classList.toggle('on',autoTimer);b.setAttribute('aria-pressed',autoTimer)}kvSet('settings',{auto:autoTimer}).catch(()=>{})}
 function obsTmr(){const f=tmrFace();return `<span id="otm" class="pl t ${f.c}" style="--p:${f.p}">${f.t}</span>`}
 function tmrToggle(){if(view!=='quiz')return;
@@ -388,7 +387,7 @@ function renderMain(){
    <button class="control primary" onclick="nextQ()">${qIndex<r.questions.length-1?'NEXT \u2192':'SCORES \u2192'}${kh('\u2192')}</button>
    <button class="control" onclick="showRound()">&#9638; GRID${kh('G')}</button>
  </div>
- <div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 ${DESK?'Space show/hide \u00B7 \u2190 \u2192 move \u00B7 G grid \u00B7 T timer \u00B7 A auto \u00B7 C contents \u00B7 O OBS screen':'Quiz data is held locally in this browser'}</div>`;
+ <div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 ${DESK?'Space show/hide \u00B7 \u2190 \u2192 move \u00B7 G grid \u00B7 T timer · C contents \u00B7 O OBS screen':'Quiz data is held locally in this browser'}</div>`;
  justRevealed=false;fitText();refreshBtns();const aq=content.querySelector('.qnum.active');if(aq&&aq.scrollIntoView)aq.scrollIntoView({block:'nearest',inline:'nearest'});
 }
 const kh=k=>DESK?'<kbd>'+k+'</kbd>':'';
@@ -426,10 +425,11 @@ function openQ(i){qIndex=i;revealed=false;view='quiz';renderRounds();render()}
 function showContents(){view='contents';au.pause();lastKey='';renderRounds();render()}
 function showQuiz(){view=entered?'quiz':'round';entered=true;renderRounds();render()}
 function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=true;renderRounds();render()}
-function goQ(i){qIndex=i;revealed=false;render()}
+function keepRev(){justRevealed=false;if(revealed)completed.add(roundIndex+'-'+qIndex)}
+function goQ(i){qIndex=i;keepRev();render()}
 function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}renderRounds();render()}
-function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;revealed=false;render()}else openScores(roundIndex)}
-function previousQ(){if(qIndex>0){qIndex--;revealed=false;render()}}
+function nextQ(){const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
+function previousQ(){if(qIndex>0){qIndex--;keepRev();render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
 function fsUpdate(){document.getElementById('fsLbl').textContent=FSon()?'EXIT FULLSCREEN':'FULLSCREEN';requestAnimationFrame(fitText)}
@@ -444,7 +444,6 @@ document.addEventListener('keydown',e=>{
  else if(k==='g'&&view==='quiz')showRound();
  else if(k==='t'&&view==='quiz')tmrToggle();
  else if(k==='r'&&view==='quiz')tmrReset();
- else if(k==='a'&&view==='quiz')toggleAuto();
  else if(k===' '||k==='enter'){e.preventDefault();if(view==='quiz')toggleAnswer();else if(view==='contents')showQuiz()}
  else if(k==='arrowright'||k==='pagedown'){e.preventDefault();if(view==='quiz')nextQ();else if(view==='score')afterScores()}
  else if(k==='arrowleft'||k==='pageup'){e.preventDefault();if(view==='quiz')previousQ();else if(view==='end')backFromEnd();else if(view==='score')backFromScores()}
