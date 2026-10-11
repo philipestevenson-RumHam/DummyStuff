@@ -225,6 +225,8 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:#b8c0cc;margin-right:8px;flex:none;vertical-align:middle}.dot.on{background:#2ecc71;box-shadow:0 0 6px #2ecc71}
 .ht .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ht .tag{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#e6f6ec;color:#127a3d;margin-left:8px}.ht .pts{color:#667085;font-size:12px;margin-left:8px;font-weight:700}
 .devs{display:inline-flex;gap:4px;align-items:center;flex-shrink:0}.devs .dv{height:2.2em;width:auto;display:block}
+#joinChip{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:60;align-items:center;gap:12px;background:#0b1f4d;border:2px solid #FFD90E;border-radius:999px;padding:6px 8px 6px 18px;color:#fff;font-weight:900;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+#joinChip button{background:#FFD90E;color:#050505;border-radius:999px;padding:6px 16px;font-weight:900}
 </style>
 </head>
 <body>
@@ -515,7 +517,7 @@ function toggleOBS(){
  obs.addEventListener('resize',()=>obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight)));
  d.addEventListener('dblclick',()=>{const o=obs.document,el=o.documentElement,on=o.fullscreenElement||o.webkitFullscreenElement;try{on?(o.exitFullscreen||o.webkitExitFullscreen).call(o):(el.requestFullscreen||el.webkitRequestFullscreen).call(el)}catch(e){}});
  obsBtnUpd();obsSync(false)}
-function obsSync(jr){if(!obs)return;if(obs.closed){obs=null;obsBtnUpd();return}
+function obsSync(jr){joinChipUpd();if(!obs)return;if(obs.closed){obs=null;obsBtnUpd();return}
  const st=obs.document.getElementById('stage');if(!st||!quiz)return;
  const h=obsHTML(jr);if(obsScore||(home.live&&view==='quiz'&&home.showRes)){if(h===obsLast)return;obsLast=h}else obsLast='';st.innerHTML=h;obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
 setInterval(()=>{if(obs&&obs.closed){obs=null;obsBtnUpd()}},1000);
@@ -661,7 +663,7 @@ function resultsHTML(){const s=home.st;if(!s)return '<div class="st c"><div clas
  const pod=f.length?`<div class="rsP">${card(1,1100)}${card(0,1900)}${card(2,500)}</div>`:'<div class="rsP"><div class="rsE">Nobody earned a speed bonus</div></div>';
  return `<div class="st"><div class="rsT">Results</div><div class="rsA">The answer: <b>${esc(q&&q.answer||'')}</b></div>${evl}<div class="rsS"><div class="rsB" style="color:#2ecc71"><i>${ok}</i><span>Correct</span></div><div class="rsB" style="color:#ff5d5d"><i>${bad}</i><span>Incorrect</span></div><div class="rsB" style="color:#b9c6da"><i>${un}</i><span>Unanswered</span></div></div>${pod}</div>`}
 function ptsN(q){return home.live?qSet(q).pts:(+q.points||0)}
-function qEvil(q){const n=v=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>0?Math.round(v):0},r=n(q&&q.reallyevil),e=n(q&&q.evil);return r?{kind:'really',pts:r}:e?{kind:'evil',pts:e}:{kind:'none',pts:0}}
+function qEvil(q){const n=v=>{v=(v===''||v==null)?NaN:Math.abs(Number(v));return isFinite(v)&&v>0?Math.round(v):0},r=n(q&&q.reallyevil),e=n(q&&q.evil);return r?{kind:'really',pts:r}:e?{kind:'evil',pts:e}:{kind:'none',pts:0}}
 function devilSVG(){return '<svg class="dv" viewBox="0 0 64 64"><path d="M8 4L26 17 11 27z" fill="#b30000"/><path d="M56 4L38 17 53 27z" fill="#b30000"/><circle cx="32" cy="38" r="22" fill="#e11d1d" stroke="#6e0000" stroke-width="3"/><path d="M14 29L29 36 15 41z" fill="#fff"/><path d="M50 29L35 36 49 41z" fill="#fff"/><circle cx="24" cy="37" r="2.6" fill="#111"/><circle cx="40" cy="37" r="2.6" fill="#111"/><path d="M19 47Q32 60 45 47Q32 52 19 47z" fill="#2a0000"/></svg>'}
 function devils(q){const k=home.live?qEvil(q).kind:'none';return k==='none'?'':`<span class="devs" title="${k==='really'?'REALLY EVIL':'EVIL'}">${devilSVG()}${k==='really'?devilSVG():''}</span>`}
 function qSet(q){const n=(v,d)=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>=0?v:d};return{pts:n(q&&q.qpoints,5),b1:n(q&&q.q1st,3),b2:n(q&&q.q2nd,2),b3:n(q&&q.q3rd,1)}}
@@ -809,7 +811,7 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
  <div class="hl">Anon / publishable key</div><input class="hin" value="${esc(c.key||'')}" onchange="homeField('key',this.value)">
  <div class="hl">Player page address</div><input class="hin" value="${esc(c.player||'')}" placeholder="https://your-site/player.html" onchange="homeField('player',this.value)">
  ${L?`<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div><div class="hl">Player link</div><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><p class="note">See who is connected on the Players tab.</p>`:''}
- <div class="modal-actions" style="justify-content:flex-start;margin-top:12px">${L?(DESK?`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`:'<p class="note" style="margin:0">Players join with the room code and link above.</p>'):`<button class="close" onclick="homeStart()">Start room</button>`}</div>`;
+ <div class="modal-actions" style="justify-content:flex-start;margin-top:12px">${L?(DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen from OBS</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):'<p class="note" style="margin:0">Players join with the room code and link above.</p>'):`<button class="close" onclick="homeStart()">Start room</button>`}</div>`;
  }
  document.getElementById('homeBody').innerHTML=`<h2>Play at home</h2>${tabs}${body}<div class="note" id="homeMsg"></div>`;homePaint()}
 function homeTab(t){home.tab=t;homeRender()}
@@ -840,7 +842,11 @@ async function homeStop(){if(!confirm('Stop the room? Teams and their points wil
  home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;homeRender();render()}
 function homeTeam(id,ren){let name=null;if(ren){name=prompt('New team name');if(name==null||!name.trim())return}else if(!confirm('Remove this team?'))return;
  hq(async()=>{await rpc('host_team',{...hk(),p_team:id,p_name:name});homePoll()})}
-function homeShowJoin(){closeHome();if(!(obs&&!obs.closed))toggleOBS();if(!obs)return;obsScore={join:true};obsLast='';obsSync(false)}
+const joinOn=()=>!!(obsScore&&obsScore.join&&obs&&!obs.closed);
+document.body.insertAdjacentHTML('beforeend','<div id="joinChip" style="display:none"><span>Join screen is showing on OBS</span><button type="button" onclick="homeHideJoin()">HIDE</button></div>');
+function joinChipUpd(){const c=document.getElementById('joinChip');if(c)c.style.display=joinOn()?'flex':'none'}
+function homeShowJoin(){closeHome();if(!(obs&&!obs.closed))toggleOBS();if(!obs)return;obsScore={join:true};obsLast='';obsSync(false);joinChipUpd()}
+function homeHideJoin(){obsScore=null;obsLast='';obsSync(false);joinChipUpd();if(!document.getElementById('homeModal').classList.contains('hidden'))homeRender()}
 async function homeImport(){let rs;try{rs=await rpc('host_rounds',hk())}catch(e){alert(e.message);return}
  if(!rs.length){alert('No home teams have joined yet.');return}
  if(rs.length>30)alert('Only the first 30 teams can be shown.');
