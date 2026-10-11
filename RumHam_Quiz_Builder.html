@@ -39,19 +39,32 @@ $('build').onclick=async()=>{try{
  const used=new Set(),missing=new Set(),authorUsed=new Set();
  const use=n=>{if(!n)return null;const k=n.toLowerCase();if(files[k]){used.add(k);return files[k].name}missing.add(n);return null};
  const author=a=>{if(!a)return null;const k=Object.keys(files).find(x=>x.replace(/\.[^.]+$/,'')===a.toLowerCase());if(k){used.add(k);authorUsed.add(k);return files[k].name}return null};
- const rounds=new Map();
+ const rounds=new Map(),warn=[];
+ const num=(r,k)=>{const v=get(r,k);if(v==='')return undefined;const n=Number(v);return isFinite(n)&&n>=0?n:undefined};
+ const typeOf=v=>/^l/i.test(v)?'letter':/^n/i.test(v)?'number':/^m/i.test(v)?'multi':'';
+ function homePlay(r,rn,qn){const o={},t=get(r,'QType'),ty=typeOf(t),qa=get(r,'QAnswer'),qm=get(r,'QMulti'),at='Round '+rn+' Q'+qn+': ';
+  if(t&&!ty)warn.push(at+'QType "'+t+'" is not Letter, Number or Multi - treated as Letter.');
+  if(ty)o.qtype=ty;if(qa!=='')o.qanswer=qa;
+  if(ty==='multi'){const opts=qm.split(/[;\n]+/).map(x=>x.trim()).filter(Boolean);o.qmulti=opts;
+   if(opts.length<2||opts.length>6)warn.push(at+'Multi needs 2 to 6 options in QMulti (found '+opts.length+').');
+   else if(!opts.some(x=>x.toLowerCase()===qa.toLowerCase()))warn.push(at+'QAnswer "'+qa+'" does not match any option in QMulti.')}
+  else if(ty==='number'&&(qa===''||!isFinite(Number(qa))))warn.push(at+'Number questions need a numeric QAnswer.');
+  else if((ty==='letter'||(!ty&&qa!==''))&&!/^[a-z]$/i.test(qa)&&qa!=='')warn.push(at+'Letter QAnswer should be a single letter (found "'+qa+'").');
+  const tm=num(r,'Timer'),pt=num(r,'QPoints'),a=num(r,'1st'),b=num(r,'2nd'),c=num(r,'3rd');
+  if(tm!==undefined)o.timer=tm;if(pt!==undefined)o.qpoints=pt;if(a!==undefined)o.q1st=a;if(b!==undefined)o.q2nd=b;if(c!==undefined)o.q3rd=c;
+  return o}
  for(const r of rows){const q=get(r,'Question');if(!q)continue;const rn=Number(get(r,'Round Number'))||0;
   if(!rounds.has(rn))rounds.set(rn,{number:rn,title:get(r,'Round Title')||'Round '+rn,questions:[]});
   const R=rounds.get(rn);
-  R.questions.push({number:Number(get(r,'Question Number'))||R.questions.length+1,category:get(r,'Question Category'),question:q,answer:get(r,'Answer'),points:Number(get(r,'Points'))||1,isPicture:/^(true|yes|1)$/i.test(get(r,'Is Picture Round')),image:use(get(r,'Image File')),info:get(r,'Info'),author:get(r,'Author'),authorImg:author(get(r,'Author')),qAudio:use(get(r,'Question Audio')),aAudio:use(get(r,'Answer Audio'))});}
+  R.questions.push({number:Number(get(r,'Question Number'))||R.questions.length+1,category:get(r,'Question Category'),question:q,answer:get(r,'Answer'),points:Number(get(r,'Points'))||1,isPicture:/^(true|yes|1)$/i.test(get(r,'Is Picture Round')),image:use(get(r,'Image File')),info:get(r,'Info'),author:get(r,'Author'),authorImg:author(get(r,'Author')),qAudio:use(get(r,'Question Audio')),aAudio:use(get(r,'Answer Audio')),...homePlay(r,rn,Number(get(r,'Question Number'))||R.questions.length+1)});}
  const media={};let i=0,ob=0,nb=0;const mx=+$('isz').value;
  for(const k of used){const f=files[k];log('Packing media '+(++i)+' / '+used.size+'…');let d=null;
   if(mx&&/^image\/(jpeg|png|webp)/.test(f.type)){d=await shrink(f,authorUsed.has(k)?800:mx);if(d){const b=Math.round((d.length-d.indexOf(',')-1)*.75);if(b<f.size){ob+=f.size;nb+=b}else d=null}}
   media[f.name]=d||await rd(f)}
- const quiz={format:'rumham-quiz',version:2,title:$('title').value||'Quiz',created:new Date().toISOString().slice(0,10),rounds:[...rounds.values()].sort((a,b)=>a.number-b.number),media};
+ const quiz={format:'rumham-quiz',version:3,title:$('title').value||'Quiz',created:new Date().toISOString().slice(0,10),rounds:[...rounds.values()].sort((a,b)=>a.number-b.number),media};
  const blob=new Blob([JSON.stringify(quiz)]),a=document.createElement('a');
  a.href=URL.createObjectURL(blob);a.download=($('title').value||'Quiz')+'.rqz';a.click();
  const nq=quiz.rounds.reduce((n,r)=>n+r.questions.length,0);
- log('Done: '+quiz.rounds.length+' rounds, '+nq+' questions, '+used.size+' media files, '+(blob.size/1048576).toFixed(1)+' MB.'+(ob?' Pictures shrunk from '+(ob/1048576).toFixed(1)+' MB to '+(nb/1048576).toFixed(1)+' MB.':'')+(missing.size?'\nNOT FOUND in your media selection ('+missing.size+'):\n'+[...missing].slice(0,15).join('\n'):''));
+ log('Done: '+quiz.rounds.length+' rounds, '+nq+' questions, '+used.size+' media files, '+(blob.size/1048576).toFixed(1)+' MB.'+(ob?' Pictures shrunk from '+(ob/1048576).toFixed(1)+' MB to '+(nb/1048576).toFixed(1)+' MB.':'')+(missing.size?'\nNOT FOUND in your media selection ('+missing.size+'):\n'+[...missing].slice(0,15).join('\n'):'')+(warn.length?'\nCHECK THESE HOME PLAY ENTRIES ('+warn.length+'):\n'+warn.slice(0,15).join('\n'):''));
 }catch(e){log('Error: '+e.message)}};
 </script></body></html>
