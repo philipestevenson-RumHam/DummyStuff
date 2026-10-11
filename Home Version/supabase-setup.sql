@@ -47,6 +47,9 @@ alter table rooms add column if not exists qtype text not null default 'letter';
 alter table rooms add column if not exists qopts text[];
 alter table rooms add column if not exists phase text not null default 'contents';
 alter table rooms add column if not exists pinfo jsonb;
+alter table rooms add column if not exists pen_kind text not null default 'none';
+alter table rooms add column if not exists pen int not null default 0;
+alter table answers add column if not exists blank boolean not null default false;
 alter table teams add column if not exists last_seen timestamptz default now();
 
 -- Nobody can touch the tables directly. Everything goes through the functions below.
@@ -80,6 +83,7 @@ begin
 end $$;
 
 -- Opens a question for answers. Calling it again for the same open question only updates the accepted answers, text and scoring.
+-- p_evil_kind is 'none', 'evil' (wrong answers lose p_penalty points) or 'really' (wrong answers AND no answer lose p_penalty points).
 -- p_qtype is 'letter', 'number' or 'multi'.
 --   number: p_correct holds the one right whole number as text.
 --   multi:  p_options holds 2 to 6 option texts and p_correct holds the position (0 to 5) of the right one.
@@ -87,15 +91,19 @@ drop function if exists open_question(text, text, text, text[]);
 drop function if exists open_question(text, text, text, text[], text, text);
 drop function if exists open_question(text, text, text, text[], text, text, int, int, int, int);
 drop function if exists open_question(text, text, text, text[], text, text, int, int, int, int, text);
+drop function if exists open_question(text, text, text, text[], text, text, int, int, int, int, text, text[]);
 create or replace function open_question(p_room text, p_key text, p_qkey text, p_correct text[],
                                          p_question text default null, p_answer text default null,
                                          p_points int default 5, p_b1 int default 3, p_b2 int default 2, p_b3 int default 1,
-                                         p_qtype text default 'letter', p_options text[] default null) returns void
+                                         p_qtype text default 'letter', p_options text[] default null,
+                                         p_evil_kind text default 'none', p_penalty int default 0) returns void
 language plpgsql security definer set search_path = public as $$
 declare r rooms;
         v_type text := case when p_qtype in ('number', 'multi') then p_qtype else 'letter' end;
         c text[];
         v_opts text[] := null;
+        v_pen int := greatest(0, coalesce(p_penalty, 0));
+        v_kind text := case when p_evil_kind in ('evil', 'really') and coalesce(p_penalty, 0) > 0 then p_evil_kind else 'none' end;
         v_pts int := greatest(0, coalesce(p_points, 5)); v1 int := greatest(0, coalesce(p_b1, 3));
         v2 int := greatest(0, coalesce(p_b2, 2));         v3 int := greatest(0, coalesce(p_b3, 1));
 begin
@@ -112,7 +120,7 @@ begin
   select * into r from rooms where code = upper(btrim(p_room));
   if r.qkey is not distinct from p_qkey and r.state <> 'idle' then
     update rooms set correct = c, qtext = p_question, atext = p_answer, qtype = v_type, qopts = v_opts,
-                     pts = v_pts, b1 = v1, b2 = v2, b3 = v3, phase = 'quiz', pinfo = null where code = r.code;
+                     pts = v_pts, b1 = v1, b2 = v2, b3 = v3, pen_kind = v_kind, pen = v_pen, phase = 'quiz', pinfo = null where code = r.code;
     return;
   end if;
   update rooms set
@@ -121,7 +129,7 @@ begin
     qtext = p_question,
     atext = p_answer,
     qtype = v_type, qopts = v_opts,
-    pts = v_pts, b1 = v1, b2 = v2, b3 = v3, phase = 'quiz', pinfo = null,
+    pts = v_pts, b1 = v1, b2 = v2, b3 = v3, pen_kind = v_kind, pen = v_pen, phase = 'quiz', pinfo = null,
     timer_state = 'idle', timer_end = null, timer_left = null,
     state = case when p_qkey = any(done) then 'revealed' else 'open' end,
     opened_at = case when p_qkey = any(done) then opened_at else clock_timestamp() end
@@ -173,6 +181,7 @@ begin
   select * into r from rooms where code = upper(btrim(p_room));
   if r.qkey is null then raise exception 'No question is open'; end if;
 
+  delete from answers where room = r.code and qkey = r.qkey and blank;
   update answers set correct = (letter = any(r.correct)), bonus = 0, points = 0
    where room = r.code and qkey = r.qkey;
 
@@ -185,6 +194,18 @@ begin
     points = r.pts + case when k.rn = 1 then r.b1 when k.rn = 2 then r.b2 when k.rn = 3 then r.b3 else 0 end
   from ranked k
   where a.room = r.code and a.qkey = r.qkey and a.team_id = k.team_id;
+
+  if r.pen_kind in ('evil', 'really') and r.pen > 0 then
+    update answers set points = -r.pen where room = r.code and qkey = r.qkey and not correct;
+    if r.pen_kind = 'really' then
+      -- teams that were already in the room when the question opened and gave no answer also lose the points
+      insert into answers (room, qkey, team_id, letter, correct, bonus, points, blank)
+      select r.code, r.qkey, t.id, '', false, 0, -r.pen, true
+        from teams t
+       where t.room = r.code and t.joined_at <= coalesce(r.opened_at, clock_timestamp())
+         and not exists (select 1 from answers a where a.room = r.code and a.qkey = r.qkey and a.team_id = t.id);
+    end if;
+  end if;
 
   update rooms set state = 'revealed',
          done = case when r.qkey = any(done) then done else array_append(done, r.qkey) end
@@ -199,13 +220,14 @@ begin
   select * into r from rooms where code = upper(btrim(p_room));
   return json_build_object(
     'state', r.state, 'qkey', r.qkey, 'opened_at', r.opened_at, 'now', clock_timestamp(), 'correct', r.correct,
-    'answered', (select count(*) from answers where room = r.code and qkey = r.qkey),
+    'answered', (select count(*) from answers where room = r.code and qkey = r.qkey and not blank),
+    'lost',     (select count(*) from answers where room = r.code and qkey = r.qkey and points < 0),
     'right',    (select count(*) from answers where room = r.code and qkey = r.qkey and correct),
     'teams', (
       select coalesce(json_agg(json_build_object(
-        'id', t.id, 'name', t.name, 'letter', a.letter,
+        'id', t.id, 'name', t.name, 'letter', case when a.blank then null else a.letter end,
         'seen', round(extract(epoch from (clock_timestamp() - t.last_seen))),
-        'ms', case when a.letter is null or r.opened_at is null then null
+        'ms', case when a.letter is null or a.blank or r.opened_at is null then null
                    else round(extract(epoch from (a.submitted_at - r.opened_at)) * 1000) end,
         'ok', a.correct, 'bonus', coalesce(a.bonus, 0), 'points', coalesce(a.points, 0),
         'total', (select coalesce(sum(x.points), 0) from answers x where x.team_id = t.id)
@@ -312,8 +334,8 @@ begin
       select coalesce(sum(points), 0) into tot from answers where room = r.code and team_id = me;
       select * into a from answers where room = r.code and qkey = r.qkey and team_id = me;
       mine := json_build_object(
-        'valid', true, 'letter', a.letter,
-        'ms', case when a.letter is null or r.opened_at is null then null
+        'valid', true, 'letter', case when a.blank then null else a.letter end,
+        'ms', case when a.letter is null or a.blank or r.opened_at is null then null
                    else round(extract(epoch from (a.submitted_at - r.opened_at)) * 1000) end,
         'ok', case when r.state = 'revealed' then a.correct end,
         'points', case when r.state = 'revealed' then a.points end,
@@ -330,6 +352,7 @@ begin
     'q', case when r.state <> 'idle' then r.qtext end,
     'qtype', case when r.state <> 'idle' then r.qtype end,
     'opts', case when r.state <> 'idle' and r.qtype = 'multi' then to_json(r.qopts) end,
+    'evil', case when r.state <> 'idle' and r.pen_kind <> 'none' then json_build_object('kind', r.pen_kind, 'pts', r.pen) end,
     'phase', r.phase,
     'pinfo', case when r.state = 'idle' then r.pinfo end,
     'a', case when r.state = 'revealed' then r.atext end,

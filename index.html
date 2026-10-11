@@ -224,6 +224,7 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .close.danger{background:#b42318}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:#b8c0cc;margin-right:8px;flex:none;vertical-align:middle}.dot.on{background:#2ecc71;box-shadow:0 0 6px #2ecc71}
 .ht .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ht .tag{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#e6f6ec;color:#127a3d;margin-left:8px}.ht .pts{color:#667085;font-size:12px;margin-left:8px;font-weight:700}
+.devs{display:inline-flex;gap:4px;align-items:center;flex-shrink:0}.devs .dv{height:2.2em;width:auto;display:block}
 </style>
 </head>
 <body>
@@ -391,7 +392,7 @@ function renderMain(){
     <span class="pill qn">Question ${String(q.number).padStart(2,'0')}</span>
     <span class="pill cat">${esc(q.category||'')}</span>
     ${q.isPicture?'<span class="pill">PICTURE</span>':''}
-    <span class="mr">${tmrBtn()}${aimg}<span class="pill points">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span>
+    <span class="mr">${tmrBtn()}${aimg}${devils(q)}<span class="pill points">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span>
    </div>
    <div class="qbody ${img?'pic':''}"><div class="qleft">
      <div class="qreg" id="qreg"><div class="lrow"><span class="label">Question</span>${pb('q',q.qAudio)}</div><div class="question" id="qtxt">${esc(q.question)}</div></div>
@@ -501,7 +502,7 @@ function obsHTML0(jr){
  if(view==='score')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">Complete</div></div>`;
  if(view==='round')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">${esc(r.title)}</div></div>`;
  const q=r.questions[qIndex],M=quiz.media||{},im=q.image&&M[q.image]?`<img class="im" src="${M[q.image]}" alt="">`:'',as=authorSrc(q);
- return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${tm.s!=='idle'?obsTmr():''}${as?`<img class="au" src="${as}" alt="">`:''}<span class="pl y">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span></div>
+ return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${tm.s!=='idle'?obsTmr():''}${as?`<img class="au" src="${as}" alt="">`:''}${devils(q)}<span class="pl y">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span></div>
  <div class="bd ${im?'':'np'}"><div class="lf"><div class="qr" id="qreg"><div class="q" id="qtxt">${esc(q.question)}</div></div><div class="ar ${revealed?(jr?'pop':''):'v'}" id="areg"><div class="a" id="atxt">${esc(q.answer)}</div>${q.info?`<div class="info">${esc(q.info)}</div>`:''}</div></div>${im}</div></div>`;
 }
 function obsBtnUpd(){document.getElementById('obsBtn').classList.toggle('hot',!!(obs&&!obs.closed))}
@@ -553,6 +554,8 @@ const OBS_CSS2=`.sbT{font:calc(var(--u)*92)/1 var(--d);color:#FFD90E;text-transf
 .rsBn{font:calc(var(--u)*130)/1 var(--d)}.rsBl{font:calc(var(--u)*32)/1 var(--d);letter-spacing:.08em;text-transform:uppercase}.rsTm{font:calc(var(--u)*34)/1 var(--d)}
 .rsE{font:calc(var(--u)*60)/1 var(--d);color:#b9c6da;align-self:center}
 @keyframes rsin{from{transform:translateY(calc(var(--u)*60));opacity:0}to{transform:none;opacity:1}}
+.devs{display:inline-flex;gap:calc(var(--u)*6);align-items:center}.devs .dv{height:calc(var(--u)*58);width:auto;display:block}
+.rsV{display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*14);margin-top:calc(var(--u)*16);font:calc(var(--u)*44)/1 var(--d);color:#ff7b7b;flex-shrink:0}.rsV .dv{height:calc(var(--u)*56);width:auto}
 .jn{align-items:stretch}.jh{display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*36);flex-shrink:0}
 .jlg{height:calc(var(--u)*120);width:auto;display:block}
 .jt{font:calc(var(--u)*80)/1 var(--d);color:#FFD90E;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(var(--u)*1300)}
@@ -654,11 +657,15 @@ function resultsHTML(){const s=home.st;if(!s)return '<div class="st c"><div clas
  const T=s.teams,ans=s.answered,ok=s.right,bad=Math.max(0,ans-ok),un=Math.max(0,T.length-ans);
  const f=T.filter(t=>t.bonus>0).sort((a,b)=>b.bonus-a.bonus),q=quiz.rounds[roundIndex].questions[qIndex],lab=['1ST','2ND','3RD'];
  const card=(i,d)=>{const t=f[i];return t?`<div class="rsC p${i+1}" style="animation-delay:${d}ms"><div class="rsPl">${lab[i]}</div><div class="rsNm">${esc(t.name)}</div><div class="rsBn">+${t.bonus}</div><div class="rsBl">bonus points</div><div class="rsTm">${t.ms!=null?(t.ms/1000).toFixed(2)+'s':''}</div></div>`:`<div class="rsC p${i+1} empty" style="animation-delay:${d}ms"><div class="rsPl">${lab[i]}</div><div class="rsNm">&mdash;</div></div>`};
+ const ev=qEvil(q),evl=ev.kind!=='none'&&s.lost!=null?`<div class="rsV">${devilSVG()}${ev.kind==='really'?devilSVG():''}<span>${s.lost} team${s.lost==1?'':'s'} lost ${ev.pts} point${ev.pts==1?'':'s'}</span></div>`:'';
  const pod=f.length?`<div class="rsP">${card(1,1100)}${card(0,1900)}${card(2,500)}</div>`:'<div class="rsP"><div class="rsE">Nobody earned a speed bonus</div></div>';
- return `<div class="st"><div class="rsT">Results</div><div class="rsA">The answer: <b>${esc(q&&q.answer||'')}</b></div><div class="rsS"><div class="rsB" style="color:#2ecc71"><i>${ok}</i><span>Correct</span></div><div class="rsB" style="color:#ff5d5d"><i>${bad}</i><span>Incorrect</span></div><div class="rsB" style="color:#b9c6da"><i>${un}</i><span>Unanswered</span></div></div>${pod}</div>`}
+ return `<div class="st"><div class="rsT">Results</div><div class="rsA">The answer: <b>${esc(q&&q.answer||'')}</b></div>${evl}<div class="rsS"><div class="rsB" style="color:#2ecc71"><i>${ok}</i><span>Correct</span></div><div class="rsB" style="color:#ff5d5d"><i>${bad}</i><span>Incorrect</span></div><div class="rsB" style="color:#b9c6da"><i>${un}</i><span>Unanswered</span></div></div>${pod}</div>`}
 function ptsN(q){return home.live?qSet(q).pts:(+q.points||0)}
+function qEvil(q){const n=v=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>0?Math.round(v):0},r=n(q&&q.reallyevil),e=n(q&&q.evil);return r?{kind:'really',pts:r}:e?{kind:'evil',pts:e}:{kind:'none',pts:0}}
+function devilSVG(){return '<svg class="dv" viewBox="0 0 64 64"><path d="M8 4L26 17 11 27z" fill="#b30000"/><path d="M56 4L38 17 53 27z" fill="#b30000"/><circle cx="32" cy="38" r="22" fill="#e11d1d" stroke="#6e0000" stroke-width="3"/><path d="M14 29L29 36 15 41z" fill="#fff"/><path d="M50 29L35 36 49 41z" fill="#fff"/><circle cx="24" cy="37" r="2.6" fill="#111"/><circle cx="40" cy="37" r="2.6" fill="#111"/><path d="M19 47Q32 60 45 47Q32 52 19 47z" fill="#2a0000"/></svg>'}
+function devils(q){const k=home.live?qEvil(q).kind:'none';return k==='none'?'':`<span class="devs" title="${k==='really'?'REALLY EVIL':'EVIL'}">${devilSVG()}${k==='really'?devilSVG():''}</span>`}
 function qSet(q){const n=(v,d)=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>=0?v:d};return{pts:n(q&&q.qpoints,5),b1:n(q&&q.q1st,3),b2:n(q&&q.q2nd,2),b3:n(q&&q.q3rd,1)}}
-function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];const z=qSet(q);return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null,p_points:z.pts,p_b1:z.b1,p_b2:z.b2,p_b3:z.b3,p_qtype:qTypeOf(q),p_options:qTypeOf(q)==='multi'?optsOf(q):null}}
+function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];const z=qSet(q);return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null,p_points:z.pts,p_b1:z.b1,p_b2:z.b2,p_b3:z.b3,p_qtype:qTypeOf(q),p_options:qTypeOf(q)==='multi'?optsOf(q):null,p_evil_kind:qEvil(q).kind,p_penalty:qEvil(q).pts}}
 function homeTimer(){if(!home.live)return;const st=tm.s,left=Math.round(tmrLeft());hq(async()=>{await rpc('set_timer',{...hk(),p_state:st,p_left:left})})}
 const optsOf=q=>{let o=q&&q.qmulti;if(typeof o==='string')o=o.split(/[;\n]+/);return Array.isArray(o)?o.map(x=>String(x).trim()).filter(Boolean):[]};
 const qTypeOf=q=>{const t=String(q&&q.qtype||'').toLowerCase();if(t==='number')return'number';if(t==='multi'){const n=optsOf(q).length;return n>=2&&n<=6?'multi':'letter'}return'letter'};
@@ -693,7 +700,7 @@ setInterval(homePoll,1500);
 function homeBarInner(){if(!home.live)return'';if(home.err)return 'HOME: '+esc(home.err);const s=home.st;if(!s)return 'HOME: connecting\u2026';
  const acc=accNow(),a=acc.length?accShow(acc):'none \u2013 set one';
  let t=`HOME ${esc(home.cfg.code)} \u00b7 <b>${s.answered}</b>/${s.teams.length} answered \u00b7 ${homeConn(s)} online`;if(s.state==='revealed'&&s.qkey===qKeyNow())t+=` \u00b7 ${s.right} correct`;
- {const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],z=qSet(q);t+=` \u00b7 ${Math.round(tmrMs()/1000)}s \u00b7 ${z.pts} pts (+${z.b1}/${z.b2}/${z.b3})`}
+ {const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],z=qSet(q);t+=` \u00b7 ${Math.round(tmrMs()/1000)}s \u00b7 ${z.pts} pts (+${z.b1}/${z.b2}/${z.b3})`;const ev=qEvil(q);if(ev.kind!=='none')t+=` \u00b7 ${ev.kind==='really'?'REALLY EVIL':'EVIL'} \u2212${ev.pts}`}
  if(home.showRes)t+=' \u00b7 RESULTS ON OBS';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
 function homeBarHTML(){return home.live&&view==='quiz'?`<div class="homebar" id="homebar">${homeBarInner()}</div>`:''}
 function chipInner(){const s=home.st;if(!home.live||!s||s.qkey!==qKeyNow())return'';

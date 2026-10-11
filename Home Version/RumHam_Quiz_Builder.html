@@ -50,6 +50,9 @@ $('build').onclick=async()=>{try{
    else if(!opts.some(x=>x.toLowerCase()===qa.toLowerCase()))warn.push(at+'QAnswer "'+qa+'" does not match any option in QMulti.')}
   else if(ty==='number'&&(qa===''||!isFinite(Number(qa))))warn.push(at+'Number questions need a numeric QAnswer.');
   else if((ty==='letter'||(!ty&&qa!==''))&&!/^[a-z]$/i.test(qa)&&qa!=='')warn.push(at+'Letter QAnswer should be a single letter (found "'+qa+'").');
+  const ev=num(r,'Evil'),re=num(r,'Really Evil');
+  if(ev>0&&re>0)warn.push(at+'Both Evil and Really Evil are filled - using Really Evil.');
+  if(re>0)o.reallyevil=re;else if(ev>0)o.evil=ev;
   const tm=num(r,'Timer'),pt=num(r,'QPoints'),a=num(r,'1st'),b=num(r,'2nd'),c=num(r,'3rd');
   if(tm!==undefined)o.timer=tm;if(pt!==undefined)o.qpoints=pt;if(a!==undefined)o.q1st=a;if(b!==undefined)o.q2nd=b;if(c!==undefined)o.q3rd=c;
   return o}

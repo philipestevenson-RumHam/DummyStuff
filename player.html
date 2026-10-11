@@ -50,6 +50,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .sb b{width:1.8em;color:var(--cyan)}.sb span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sb em{font-style:normal;color:var(--yellow)}
 .sb li.me{background:var(--yellow);color:var(--ink)}.sb li.me b,.sb li.me em{color:var(--ink)}
 .big3{font:900 clamp(30px,9vw,44px)/1.1 Arial,sans-serif;color:var(--yellow);overflow-wrap:anywhere}
+.evil{display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(225,29,29,.22);border:2px solid #e11d1d;border-radius:12px;padding:6px 12px;font-weight:900;font-size:clamp(13px,3.8vw,16px);color:#ffd0d0;width:100%;max-width:440px;text-align:left}
+.evil .dv{height:30px;width:auto;flex:none}
 .numdisp{width:100%;max-width:360px;background:#fff;color:var(--ink);border-radius:14px;padding:10px 14px;font:900 clamp(34px,11vw,48px)/1.1 Arial,sans-serif;min-height:1.3em;letter-spacing:.04em;overflow:hidden}
 .npad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:360px}
 .nk{height:clamp(52px,9.5vh,72px);border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(24px,7vw,32px);box-shadow:0 4px 0 #0a2250}
@@ -130,6 +132,12 @@ async function poll() {
 
 const showL = l => l === 'X' ? 'X/Y' : l;
 let tmr = { state: 'idle', left: 0, at: 0 }, numBuf = '', numQ = null;
+const devilSVG = () => '<svg class="dv" viewBox="0 0 64 64"><path d="M8 4L26 17 11 27z" fill="#b30000"/><path d="M56 4L38 17 53 27z" fill="#b30000"/><circle cx="32" cy="38" r="22" fill="#e11d1d" stroke="#6e0000" stroke-width="3"/><path d="M14 29L29 36 15 41z" fill="#fff"/><path d="M50 29L35 36 49 41z" fill="#fff"/><circle cx="24" cy="37" r="2.6" fill="#111"/><circle cx="40" cy="37" r="2.6" fill="#111"/><path d="M19 47Q32 60 45 47Q32 52 19 47z" fill="#2a0000"/></svg>';
+function evilBar(ev) {
+  if (!ev) return '';
+  const really = ev.kind === 'really';
+  return `<div class="evil">${devilSVG()}${really ? devilSVG() : ''}<span>${really ? 'REALLY EVIL: a wrong answer or no answer' : 'EVIL: a wrong answer'} costs ${esc(ev.pts)} point${+ev.pts === 1 ? '' : 's'}</span></div>`;
+}
 function board(rows) {
   if (!rows || !rows.length) return '<div class="sub">Scores coming up&hellip;</div>';
   const mine = n => me && String(n).toLowerCase() === String(me.name).toLowerCase();
@@ -167,7 +175,7 @@ function draw(s) {
   const L = m.letter || (pendQ === s.qkey ? pend : null);
   if (s.qkey !== numQ) { numQ = s.qkey; numBuf = ''; }
   const isNum = s.qtype === 'number', isMulti = s.qtype === 'multi', opts = s.opts || [];
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null)].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null)].join('|');
   if (key === sig) return; sig = key;
 
   const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : '';
@@ -175,16 +183,17 @@ function draw(s) {
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
   let body;
   if (s.state === 'open') {
-    body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
   } else if (s.state === 'closed') {
-    body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
              : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`);
   } else if (s.state === 'revealed') {
     const letters = (s.correct || []).map(isNum ? (x => x) : isMulti ? (x => opts[+x] || '') : showL).join(' / ');
     let res;
-    if (!m.letter) res = `<div class="res none">No answer</div>`;
+    const lose = m.points < 0 ? ` &minus;${-m.points}` : '';
+    if (!m.letter) res = `<div class="res ${lose ? 'bad' : 'none'}">No answer${lose}</div>`;
     else if (m.ok) res = `<div class="res ok">&#10003; Correct +${m.points}</div>` + (m.bonus ? `<div class="bonus">Includes +${m.bonus} speed bonus!</div>` : '') + (secs ? `<div class="sub">${secs}</div>` : '');
-    else res = `<div class="res bad">&#10007; You ${isNum ? 'answered' : 'chose'} ${esc(isNum ? m.letter : isMulti ? (opts[+m.letter] || '?') : showL(m.letter))}</div>`;
+    else res = `<div class="res bad">&#10007; You ${isNum ? 'answered' : 'chose'} ${esc(isNum ? m.letter : isMulti ? (opts[+m.letter] || '?') : showL(m.letter))}${lose}</div>`;
     const f = (s.fastest || []).map(x => `<li><b>${esc(x.name)}</b> +${x.bonus}</li>`).join('');
     body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum && !isMulti ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
   } else {
