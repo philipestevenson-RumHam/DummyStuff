@@ -327,7 +327,7 @@ function renderRounds(){
  const sb=document.createElement('button');sb.className='round-btn '+(view==='score'?'active':'');sb.innerHTML='Scores<small>'+Object.keys(scores).length+' of '+quiz.rounds.length+' entered</small>';sb.onclick=()=>openScores();el.appendChild(sb);
  const a=el.querySelector('.active');if(a&&a.scrollIntoView)a.scrollIntoView({block:'nearest',inline:'nearest'});
 }
-function fitReg(reg,apply,lo,hi){while(lo<hi){const m=Math.ceil((lo+hi)/2);apply(m);if(reg.scrollHeight<=reg.clientHeight+1&&reg.scrollWidth<=reg.clientWidth+1)lo=m;else hi=m-1}apply(lo)}
+function fitReg(reg,apply,lo,hi){lo=Math.ceil(lo);hi=Math.floor(hi);while(lo<hi){const m=Math.ceil((lo+hi)/2);apply(m);if(reg.scrollHeight<=reg.clientHeight+1&&reg.scrollWidth<=reg.clientWidth+1)lo=m;else hi=m-1}apply(lo)}
 function fitText(d,H){d=d&&d.getElementById?d:document;H=H||innerHeight;
  const qr=d.getElementById('qreg'),ar=d.getElementById('areg');if(!qr||!ar)return;
  const qt=d.getElementById('qtxt'),at=d.getElementById('atxt'),inf=ar.querySelector('.info');
@@ -644,11 +644,19 @@ function resultsHTML(){const s=home.st;if(!s)return '<div class="st c"><div clas
  const pod=f.length?`<div class="rsP">${card(1,1100)}${card(0,1900)}${card(2,500)}</div>`:'<div class="rsP"><div class="rsE">Nobody earned a speed bonus</div></div>';
  return `<div class="st"><div class="rsT">Results</div><div class="rsA">The answer: <b>${esc(q&&q.answer||'')}</b></div><div class="rsS"><div class="rsB" style="color:#2ecc71"><i>${ok}</i><span>Correct</span></div><div class="rsB" style="color:#ff5d5d"><i>${bad}</i><span>Incorrect</span></div><div class="rsB" style="color:#b9c6da"><i>${un}</i><span>Unanswered</span></div></div>${pod}</div>`}
 function qSet(q){const n=(v,d)=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>=0?v:d};return{pts:n(q&&q.qpoints,5),b1:n(q&&q.q1st,3),b2:n(q&&q.q2nd,2),b3:n(q&&q.q3rd,1)}}
-function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];const z=qSet(q);return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null,p_points:z.pts,p_b1:z.b1,p_b2:z.b2,p_b3:z.b3,p_qtype:qTypeOf(q)}}
+function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];const z=qSet(q);return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null,p_points:z.pts,p_b1:z.b1,p_b2:z.b2,p_b3:z.b3,p_qtype:qTypeOf(q),p_options:qTypeOf(q)==='multi'?optsOf(q):null}}
 function homeTimer(){if(!home.live)return;const st=tm.s,left=Math.round(tmrLeft());hq(async()=>{await rpc('set_timer',{...hk(),p_state:st,p_left:left})})}
-const qTypeOf=q=>q&&String(q.qtype||'').toLowerCase()==='number'?'number':'letter';
+const optsOf=q=>{let o=q&&q.qmulti;if(typeof o==='string')o=o.split(/[;\n]+/);return Array.isArray(o)?o.map(x=>String(x).trim()).filter(Boolean):[]};
+const qTypeOf=q=>{const t=String(q&&q.qtype||'').toLowerCase();if(t==='number')return'number';if(t==='multi'){const n=optsOf(q).length;return n>=2&&n<=6?'multi':'letter'}return'letter'};
+const multiIdx=q=>{const o=optsOf(q),k=String(q.qanswer!=null&&String(q.qanswer).trim()!==''?q.qanswer:(q.answer==null?'':q.answer)).trim().toLowerCase();return o.findIndex(x=>x.toLowerCase()===k)};
 const wholeOf=v=>{const t=String(v==null?'':v).trim();if(!/^\d+$/.test(t)){const n=Number(t);return t!==''&&Number.isInteger(n)&&n>=0?String(n):''}return String(parseInt(t,10))};
+function accShow(acc){const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];return qTypeOf(q)==='multi'?acc.map(i=>optsOf(q)[+i]||i).join(' / '):acc.map(l=>l==='X'?'X/Y':l).join(' / ')}
+function accPrompt(){const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],t=qTypeOf(q),a=accNow();
+ if(t==='multi')return['Option number that counts as correct (1 to '+optsOf(q).length+')',a.length?String(+a[0]+1):''];
+ if(t==='number')return['The whole number that counts as correct for this question',a.join(',')];
+ return['Letters that count as correct for this question (e.g. B or T,B)',a.join(',')]}
 function accNow(){const k=qKeyNow();if(home.acc[k])return home.acc[k];const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];if(qTypeOf(q)==='number'){const w=wholeOf(q.qanswer);return w===''?[]:[w]}
+ if(qTypeOf(q)==='multi'){const i=multiIdx(q);return i<0?[]:[String(i)]}
  if(q&&q.qanswer!=null&&String(q.qanswer)!==''&&(!q.qtype||q.qtype==='letter')){const l=(String(q.qanswer).toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x);if(l.length)return l}return q?defLetters(q.answer):[]}
 function homeSync(){if(!home.live)return;if(view==='quiz'&&!revealed)homeOpen(qKeyNow());else homeIdle()}
 function homeOpen(qk){hq(async()=>{if(home.openedQ===qk)return;await rpc('open_question',{...hk(),p_qkey:qk,p_correct:accNow(),...qInfo(qk)});home.openedQ=qk;home.err='';homePoll()})}
@@ -656,12 +664,12 @@ function homeIdle(){hq(async()=>{if(home.openedQ==null)return;await rpc('set_sta
 function homeClose(){if(!home.live||view!=='quiz'||revealed)return;hq(async()=>{if(home.openedQ==null)return;await rpc('set_state',{...hk(),p_state:'closed'});homePoll()})}
 function homeReveal(){const qk=qKeyNow();hq(async()=>{if(home.openedQ!==qk){await rpc('open_question',{...hk(),p_qkey:qk,p_correct:accNow(),...qInfo(qk)});home.openedQ=qk}
  await rpc('reveal_question',hk());home.err='';homePoll()})}
-function homeAccEdit(){const k=qKeyNow(),v=prompt(qTypeOf(quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex])==='number'?'The whole number that counts as correct for this question':'Letters that count as correct for this question (e.g. B or T,B)',accNow().join(','));if(v===null)return;
- {const cq=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];home.acc[k]=qTypeOf(cq)==='number'?((v.match(/\d+/)||[]).map(x=>String(parseInt(x,10)))):(v.toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x)}hq(async()=>{await rpc('open_question',{...hk(),p_qkey:k,p_correct:home.acc[k],...qInfo(k)});if(home.st&&home.st.state==='revealed'&&home.st.qkey===k)await rpc('reveal_question',hk());homePoll()})}
+function homeAccEdit(){const k=qKeyNow(),v=prompt(...accPrompt());if(v===null)return;
+ {const cq=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];home.acc[k]=qTypeOf(cq)==='multi'?((v.match(/\d+/)||[]).map(x=>String(parseInt(x,10)-1)).filter(x=>+x>=0&&+x<optsOf(cq).length)):qTypeOf(cq)==='number'?((v.match(/\d+/)||[]).map(x=>String(parseInt(x,10)))):(v.toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x)}hq(async()=>{await rpc('open_question',{...hk(),p_qkey:k,p_correct:home.acc[k],...qInfo(k)});if(home.st&&home.st.state==='revealed'&&home.st.qkey===k)await rpc('reveal_question',hk());homePoll()})}
 async function homePoll(){if(!home.live||home.busy)return;home.busy=true;try{home.st=await rpc('host_state',hk());home.err=''}catch(e){home.err=e.message}home.busy=false;homePaint()}
 setInterval(homePoll,1500);
 function homeBarInner(){if(!home.live)return'';if(home.err)return 'HOME: '+esc(home.err);const s=home.st;if(!s)return 'HOME: connecting\u2026';
- const acc=accNow(),a=acc.length?acc.map(l=>l==='X'?'X/Y':l).join(' / '):'none \u2013 set one';
+ const acc=accNow(),a=acc.length?accShow(acc):'none \u2013 set one';
  let t=`HOME ${esc(home.cfg.code)} \u00b7 <b>${s.answered}</b>/${s.teams.length} answered \u00b7 ${homeConn(s)} online`;if(s.state==='revealed'&&s.qkey===qKeyNow())t+=` \u00b7 ${s.right} correct`;
  {const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],z=qSet(q);t+=` \u00b7 ${Math.round(tmrMs()/1000)}s \u00b7 ${z.pts} pts (+${z.b1}/${z.b2}/${z.b3})`}
  if(home.showRes)t+=' \u00b7 RESULTS ON OBS';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
