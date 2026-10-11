@@ -219,6 +219,11 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .ht{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #eef0f4;color:#050505;font-weight:700}
 .ht button{background:#eef0f4;color:#050505;border-radius:6px;padding:4px 9px;font-weight:800;font-size:12px;margin-left:4px}
 .sn{width:auto;flex:1 1 0;min-width:4em;overflow:hidden;text-overflow:ellipsis}
+.htabs{display:flex;gap:6px;margin:0 0 14px}.htab{padding:8px 16px;border-radius:999px;background:#eef0f4;color:#050505;font-weight:800}.htab.on{background:var(--navy);color:#fff}
+.cbk{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin:0 0 12px}.cbk .note{margin:0}
+.close.danger{background:#b42318}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:#b8c0cc;margin-right:8px;flex:none;vertical-align:middle}.dot.on{background:#2ecc71;box-shadow:0 0 6px #2ecc71}
+.ht .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ht .tag{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#e6f6ec;color:#127a3d;margin-left:8px}.ht .pts{color:#667085;font-size:12px;margin-left:8px;font-weight:700}
 </style>
 </head>
 <body>
@@ -303,7 +308,7 @@ async function init(){
 function resetProgress(){if(!confirm('Reset progress? The quiz stays loaded and returns to the title screen.'))return;closeImporter();loadQuiz(quiz)}
 function clearSaved(){if(!confirm('Remove the saved quiz and your progress from this browser? You can import the quiz again later.'))return;kv('readwrite',st=>{st.delete('quiz');st.delete('state')}).catch(()=>{});closeImporter();loadQuiz(dummy)}
 function loadQuiz(data){
- quiz=data; au.pause();lastKey='';tm={s:'idle',left:TMR_MS,end:0};roundIndex=0;qIndex=0;revealed=false;completed=new Set();view='contents';entered=false;scores={};teams=10;names=[];scoreR=0;obsScore=null;
+ quiz=data; au.pause();lastKey='';tm={s:'idle',left:tmrMs(),end:0};roundIndex=0;qIndex=0;revealed=false;completed=new Set();view='contents';entered=false;scores={};teams=10;names=[];scoreR=0;obsScore=null;
  document.getElementById('quizTitle').textContent=data.title||'RumHam Quiz';
  renderRounds(); render(); prepAuthors();
 }
@@ -334,29 +339,31 @@ function setH(){document.documentElement.style.setProperty('--app-h',(window.vis
 setH();['resize','orientationchange'].forEach(e=>window.addEventListener(e,()=>{setH();setTimeout(setH,250)}));
 if(window.visualViewport)visualViewport.addEventListener('resize',setH);
 if(window.ResizeObserver)new ResizeObserver(()=>requestAnimationFrame(fitText)).observe(document.getElementById('content'));
-const TMR_MS=30000;let tm={s:'idle',left:TMR_MS,end:0};let autoTimer=true,noAuto=false;
+const TMR_MS=30000;
+function tmrMs(){const q=quiz&&quiz.rounds&&quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],t=q?Number(q.timer):NaN;return isFinite(t)&&t>0?Math.round(t*1000):TMR_MS}
+let tm={s:'idle',left:tmrMs(),end:0};let autoTimer=true,noAuto=false;
 function tmrLeft(){return tm.s==='run'?Math.max(0,tm.end-Date.now()):tm.left}
 function tmrFace(){const l=tmrLeft(),sec=Math.ceil(l/1000),st=tm.s;
- const t=st==='idle'?'\u25B6 30s':st==='done'?'TIME UP':st==='pause'?'\u275A\u275A '+sec:String(sec);
+ const t=st==='idle'?'\u25B6 '+Math.round(tmrMs()/1000)+'s':st==='done'?'TIME UP':st==='pause'?'\u275A\u275A '+sec:String(sec);
  const c=st+(st==='run'||st==='pause'?(sec<=5?' crit':sec<=10?' warn':''):'');
- return{t,c,p:(st==='idle'?100:l/TMR_MS*100).toFixed(1)+'%'}}
+ return{t,c,p:(st==='idle'?100:l/tmrMs()*100).toFixed(1)+'%'}}
 function tmrApply(el,base){if(!el)return;const f=tmrFace();el.textContent=f.t;el.className=base+' '+f.c;el.style.setProperty('--p',f.p)}
 function tmrPaint(){tmrApply(document.getElementById('tmr'),'tmr');if(obs&&!obs.closed)tmrApply(obs.document.getElementById('otm'),'pl t')}
 function tmrBtn(){const f=tmrFace();return `<button class="tmr ${f.c}" id="tmr" style="--p:${f.p}" onclick="tmrToggle()" title="Question timer (T)" aria-label="Question timer">${f.t}</button>`}
 function toggleAuto(){autoTimer=!autoTimer;const b=document.getElementById('tauto');if(b){b.classList.toggle('on',autoTimer);b.setAttribute('aria-pressed',autoTimer)}kvSet('settings',{auto:autoTimer}).catch(()=>{})}
 function obsTmr(){const f=tmrFace();return `<span id="otm" class="pl t ${f.c}" style="--p:${f.p}">${f.t}</span>`}
 function tmrToggle(){if(view!=='quiz')return;
- if(tm.s==='idle')tm={s:'run',left:TMR_MS,end:Date.now()+TMR_MS};
+ if(tm.s==='idle')tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};
  else if(tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}
  else if(tm.s==='pause'){tm.end=Date.now()+tm.left;tm.s='run'}
- else tm={s:'idle',left:TMR_MS,end:0};
+ else tm={s:'idle',left:tmrMs(),end:0};
  tmrPaint();obsSync(false);homeTimer()}
-function tmrReset(){if(tm.s==='idle')return;tm={s:'idle',left:TMR_MS,end:0};tmrPaint();obsSync(false);homeTimer()}
+function tmrReset(){if(tm.s==='idle')return;tm={s:'idle',left:tmrMs(),end:0};tmrPaint();obsSync(false);homeTimer()}
 setInterval(()=>{if(tm.s!=='run')return;if(tmrLeft()<=0){tm.s='done';tm.left=0;homeClose();homeTimer()}tmrPaint()},100);
 let lastRK='';
 function render(){const jr=justRevealed;
  const rk=view+'|'+roundIndex+'|'+(view==='quiz'?qIndex:view==='score'?'s'+scoreR:'');const chg=rk!==lastRK;
- if(chg){lastRK=rk;obsScore=null;homeSync();tm={s:'idle',left:TMR_MS,end:0};if(autoTimer&&!noAuto&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:TMR_MS,end:Date.now()+TMR_MS};homeTimer()}
+ if(chg){lastRK=rk;obsScore=null;home.showRes=false;homeSync();tm={s:'idle',left:tmrMs(),end:0};if(autoTimer&&!noAuto&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};homeTimer()}
  renderMain();
  if(chg){const c=document.getElementById('content');c.classList.remove('enter');void c.offsetWidth;c.classList.add('enter');clearTimeout(render.t);render.t=setTimeout(()=>c.classList.remove('enter'),view==='quiz'?300:1300)}
  obsSync(jr);saveSoon()}
@@ -393,7 +400,7 @@ function renderMain(){
  <div class="controls">
    <button class="control" onclick="previousQ()" ${qIndex===0?'disabled':''}>\u2190 PREVIOUS${kh('\u2190')}</button>
    <button class="control reveal" onclick="toggleAnswer()">${revealed?'HIDE ANSWER':'SHOW ANSWER'}${kh('Space')}</button>
-   <button class="control primary" onclick="nextQ()">${qIndex<r.questions.length-1?'NEXT \u2192':'SCORES \u2192'}${kh('\u2192')}</button>
+   <button class="control primary" onclick="nextQ()">${nextLabel(r)}${kh('\u2192')}</button>
    <button class="control" onclick="showRound()">&#9638; GRID${kh('G')}</button>
  </div>
  ${homeBarHTML()}<div class="status">${revealed?'Answers showing':'Answers hidden'} \u00B7 ${DESK?'Space show/hide \u00B7 \u2190 \u2192 move \u00B7 G grid \u00B7 T timer · C contents \u00B7 O OBS screen':'Quiz data is held locally in this browser'}</div>`;
@@ -436,8 +443,8 @@ function showQuiz(){view=entered?'quiz':'round';entered=true;renderRounds();rend
 function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=true;renderRounds();render()}
 function keepRev(){justRevealed=false;if(home.live){revealed=false;return}if(revealed)completed.add(roundIndex+'-'+qIndex)}
 function goQ(i){qIndex=i;keepRev();render()}
-function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live)homeReveal();if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
-function nextQ(){if(home.live&&view==='quiz'&&!revealed){toggleAnswer();return}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
+function toggleAnswer(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live)homeReveal();if(!revealed)home.showRes=false;if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
+function nextQ(){if(home.live&&view==='quiz'){if(!revealed){toggleAnswer();return}if(!home.showRes){homeShowResults();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
 function previousQ(){if(qIndex>0){qIndex--;keepRev();render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
@@ -509,7 +516,7 @@ function toggleOBS(){
  obsBtnUpd();obsSync(false)}
 function obsSync(jr){if(!obs)return;if(obs.closed){obs=null;obsBtnUpd();return}
  const st=obs.document.getElementById('stage');if(!st||!quiz)return;
- const h=obsHTML(jr);if(obsScore){if(h===obsLast)return;obsLast=h}else obsLast='';st.innerHTML=h;obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
+ const h=obsHTML(jr);if(obsScore||(home.live&&view==='quiz'&&home.showRes)){if(h===obsLast)return;obsLast=h}else obsLast='';st.innerHTML=h;obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
 setInterval(()=>{if(obs&&obs.closed){obs=null;obsBtnUpd()}},1000);
 addEventListener('beforeunload',()=>{if(obs&&!obs.closed)obs.close()});
 function openImporter(){document.getElementById('importModal').classList.remove('hidden')}
@@ -532,7 +539,20 @@ const OBS_CSS2=`.sbT{font:calc(var(--u)*92)/1 var(--d);color:#FFD90E;text-transf
 @keyframes sbdrop{from{transform:translateY(calc(var(--u)*-1100));opacity:0}15%{opacity:1}to{transform:none;opacity:1}}
 .hm{position:fixed;left:50%;bottom:calc(var(--u)*4);transform:translateX(-50%);z-index:9;background:rgba(5,5,5,.9);border:calc(var(--u)*3) solid #20C7D9;border-radius:999px;padding:calc(var(--u)*6) calc(var(--u)*28);font:calc(var(--u)*28)/1.2 var(--d);color:#fff;letter-spacing:.04em;white-space:nowrap}.hm:empty{display:none}.hm b{color:#FFD90E}
 .jc{font:calc(var(--u)*230)/1 var(--d);color:#FFD90E;letter-spacing:.14em}
-.jl{font:calc(var(--u)*34)/1.5 var(--d);color:#fff;max-width:92%;text-align:center;max-height:calc(var(--u)*280);overflow:hidden}`;
+.jl{font:calc(var(--u)*34)/1.5 var(--d);color:#fff;max-width:92%;text-align:center;max-height:calc(var(--u)*280);overflow:hidden}
+.rsT{font:calc(var(--u)*100)/1 var(--d);color:#FFD90E;text-align:center;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0}
+.rsA{font:calc(var(--u)*40)/1.2 var(--d);color:#b9c6da;text-align:center;margin-top:calc(var(--u)*6);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsA b{color:#fff}
+.rsS{display:flex;gap:calc(var(--u)*30);justify-content:center;margin-top:calc(var(--u)*26);flex-shrink:0}
+.rsB{min-width:calc(var(--u)*440);text-align:center;border-radius:calc(var(--u)*20);padding:calc(var(--u)*12) calc(var(--u)*20);background:rgba(255,255,255,.1);border:calc(var(--u)*4) solid currentColor;animation:rsin .6s both}
+.rsB i{display:block;font:normal calc(var(--u)*120)/1 var(--d)}.rsB span{font:calc(var(--u)*34)/1.2 var(--d);letter-spacing:.08em;text-transform:uppercase;color:#fff}
+.rsP{flex:1;min-height:0;display:flex;justify-content:center;align-items:flex-end;gap:calc(var(--u)*28);margin-top:calc(var(--u)*22)}
+.rsC{width:calc(var(--u)*470);border-radius:calc(var(--u)*22) calc(var(--u)*22) 0 0;text-align:center;padding:calc(var(--u)*14);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6);color:#050505;overflow:hidden;animation:rsin .8s both}
+.rsC.p1{height:94%;background:linear-gradient(180deg,#ffe95a,#c9a400)}.rsC.p2{height:80%;background:linear-gradient(180deg,#f2f5fa,#98a3b3)}.rsC.p3{height:68%;background:linear-gradient(180deg,#e9a566,#9c5a1b)}
+.rsC.empty{opacity:.25}
+.rsPl{font:calc(var(--u)*56)/1 var(--d)}.rsNm{font:calc(var(--u)*54)/1.1 var(--d);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsBn{font:calc(var(--u)*130)/1 var(--d)}.rsBl{font:calc(var(--u)*32)/1 var(--d);letter-spacing:.08em;text-transform:uppercase}.rsTm{font:calc(var(--u)*34)/1 var(--d)}
+.rsE{font:calc(var(--u)*60)/1 var(--d);color:#b9c6da;align-self:center}
+@keyframes rsin{from{transform:translateY(calc(var(--u)*60));opacity:0}to{transform:none;opacity:1}}`;
 function standings(up){const rows=[];for(let t=0;t<teams;t++){let v=0;for(let i=0;i<=up;i++){const e=scores[i];if(e&&e.v[t]!=null)v+=+e.v[t]}rows.push({t,s:Math.round(v*100)/100})}
  const srt=[...rows].sort((a,b)=>b.s-a.s||a.t-b.t);let p=0;srt.forEach((x,i)=>{if(i===0||x.s!==srt[i-1].s)p=i+1;x.p=p});return{rows,srt}}
 const layoutOf=n=>({r:Math.min(n,15),c:n>15?2:1});
@@ -600,7 +620,7 @@ function stopHold(){clearTimeout(holdT);clearInterval(holdI)}
  c.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.stp'))e.preventDefault()});
 })();
 /* ===== Play at home (Supabase) ===== */
-const home={live:false,cfg:{},st:null,err:'',openedQ:null,chain:Promise.resolve(),busy:false,acc:{}};
+const home={showRes:false,live:false,cfg:{},st:null,err:'',openedQ:null,chain:Promise.resolve(),busy:false,acc:{}};
 const tn=t=>names[t]||('Team '+(t+1));
 const qKeyNow=()=>roundIndex+'-'+qIndex;
 try{home.cfg=JSON.parse(localStorage.getItem('rh_home')||'{}')||{}}catch(e){home.cfg={}}
@@ -615,23 +635,36 @@ const hk=()=>({p_room:home.cfg.code,p_key:home.cfg.hk});
 function hq(fn){home.chain=home.chain.then(fn).catch(e=>{home.err=e.message;homePaint()});return home.chain}
 function defLetters(a){a=String(a||'').trim().replace(/^[^A-Za-z0-9]+/,'');const out=[],m=a.match(/^(the|a|an)\s+(\S)/i);
  if(m){out.push(a[0].toUpperCase(),m[2].toUpperCase())}else if(/^[A-Za-z]/.test(a))out.push(a[0].toUpperCase());return out.filter(x=>/^[A-Z]$/.test(x)).map(x=>x==='Y'?'X':x)}
-function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null}}
+function nextLabel(r){const last=qIndex>=r.questions.length-1;if(home.live){if(!revealed)return 'SHOW ANSWER';if(!home.showRes)return 'SHOW RESULTS'}return last?'SCORES \u2192':'NEXT \u2192'}
+async function homeShowResults(){try{home.st=await rpc('host_state',hk())}catch(e){home.err=e.message}home.showRes=true;render();homePaint()}
+function resultsHTML(){const s=home.st;if(!s)return '<div class="st c"><div class="bt">Results</div></div>';
+ const T=s.teams,ans=s.answered,ok=s.right,bad=Math.max(0,ans-ok),un=Math.max(0,T.length-ans);
+ const f=T.filter(t=>t.bonus>0).sort((a,b)=>b.bonus-a.bonus),q=quiz.rounds[roundIndex].questions[qIndex],lab=['1ST','2ND','3RD'];
+ const card=(i,d)=>{const t=f[i];return t?`<div class="rsC p${i+1}" style="animation-delay:${d}ms"><div class="rsPl">${lab[i]}</div><div class="rsNm">${esc(t.name)}</div><div class="rsBn">+${t.bonus}</div><div class="rsBl">bonus points</div><div class="rsTm">${t.ms!=null?(t.ms/1000).toFixed(2)+'s':''}</div></div>`:`<div class="rsC p${i+1} empty" style="animation-delay:${d}ms"><div class="rsPl">${lab[i]}</div><div class="rsNm">&mdash;</div></div>`};
+ const pod=f.length?`<div class="rsP">${card(1,1100)}${card(0,1900)}${card(2,500)}</div>`:'<div class="rsP"><div class="rsE">Nobody earned a speed bonus</div></div>';
+ return `<div class="st"><div class="rsT">Results</div><div class="rsA">The answer: <b>${esc(q&&q.answer||'')}</b></div><div class="rsS"><div class="rsB" style="color:#2ecc71"><i>${ok}</i><span>Correct</span></div><div class="rsB" style="color:#ff5d5d"><i>${bad}</i><span>Incorrect</span></div><div class="rsB" style="color:#b9c6da"><i>${un}</i><span>Unanswered</span></div></div>${pod}</div>`}
+function qSet(q){const n=(v,d)=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>=0?v:d};return{pts:n(q&&q.qpoints,5),b1:n(q&&q.q1st,3),b2:n(q&&q.q2nd,2),b3:n(q&&q.q3rd,1)}}
+function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];const z=qSet(q);return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null,p_points:z.pts,p_b1:z.b1,p_b2:z.b2,p_b3:z.b3,p_qtype:qTypeOf(q)}}
 function homeTimer(){if(!home.live)return;const st=tm.s,left=Math.round(tmrLeft());hq(async()=>{await rpc('set_timer',{...hk(),p_state:st,p_left:left})})}
-function accNow(){const k=qKeyNow();if(home.acc[k])return home.acc[k];const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];return q?defLetters(q.answer):[]}
+const qTypeOf=q=>q&&String(q.qtype||'').toLowerCase()==='number'?'number':'letter';
+const wholeOf=v=>{const t=String(v==null?'':v).trim();if(!/^\d+$/.test(t)){const n=Number(t);return t!==''&&Number.isInteger(n)&&n>=0?String(n):''}return String(parseInt(t,10))};
+function accNow(){const k=qKeyNow();if(home.acc[k])return home.acc[k];const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];if(qTypeOf(q)==='number'){const w=wholeOf(q.qanswer);return w===''?[]:[w]}
+ if(q&&q.qanswer!=null&&String(q.qanswer)!==''&&(!q.qtype||q.qtype==='letter')){const l=(String(q.qanswer).toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x);if(l.length)return l}return q?defLetters(q.answer):[]}
 function homeSync(){if(!home.live)return;if(view==='quiz'&&!revealed)homeOpen(qKeyNow());else homeIdle()}
 function homeOpen(qk){hq(async()=>{if(home.openedQ===qk)return;await rpc('open_question',{...hk(),p_qkey:qk,p_correct:accNow(),...qInfo(qk)});home.openedQ=qk;home.err='';homePoll()})}
 function homeIdle(){hq(async()=>{if(home.openedQ==null)return;await rpc('set_state',{...hk(),p_state:'idle'});home.openedQ=null;homePoll()})}
 function homeClose(){if(!home.live||view!=='quiz'||revealed)return;hq(async()=>{if(home.openedQ==null)return;await rpc('set_state',{...hk(),p_state:'closed'});homePoll()})}
 function homeReveal(){const qk=qKeyNow();hq(async()=>{if(home.openedQ!==qk){await rpc('open_question',{...hk(),p_qkey:qk,p_correct:accNow(),...qInfo(qk)});home.openedQ=qk}
  await rpc('reveal_question',hk());home.err='';homePoll()})}
-function homeAccEdit(){const k=qKeyNow(),v=prompt('Letters that count as correct for this question (e.g. B or T,B)',accNow().join(','));if(v===null)return;
- home.acc[k]=(v.toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x);hq(async()=>{await rpc('open_question',{...hk(),p_qkey:k,p_correct:home.acc[k],...qInfo(k)});if(home.st&&home.st.state==='revealed'&&home.st.qkey===k)await rpc('reveal_question',hk());homePoll()})}
+function homeAccEdit(){const k=qKeyNow(),v=prompt(qTypeOf(quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex])==='number'?'The whole number that counts as correct for this question':'Letters that count as correct for this question (e.g. B or T,B)',accNow().join(','));if(v===null)return;
+ {const cq=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];home.acc[k]=qTypeOf(cq)==='number'?((v.match(/\d+/)||[]).map(x=>String(parseInt(x,10)))):(v.toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x)}hq(async()=>{await rpc('open_question',{...hk(),p_qkey:k,p_correct:home.acc[k],...qInfo(k)});if(home.st&&home.st.state==='revealed'&&home.st.qkey===k)await rpc('reveal_question',hk());homePoll()})}
 async function homePoll(){if(!home.live||home.busy)return;home.busy=true;try{home.st=await rpc('host_state',hk());home.err=''}catch(e){home.err=e.message}home.busy=false;homePaint()}
 setInterval(homePoll,1500);
 function homeBarInner(){if(!home.live)return'';if(home.err)return 'HOME: '+esc(home.err);const s=home.st;if(!s)return 'HOME: connecting\u2026';
  const acc=accNow(),a=acc.length?acc.map(l=>l==='X'?'X/Y':l).join(' / '):'none \u2013 set one';
- let t=`HOME ${esc(home.cfg.code)} \u00b7 <b>${s.answered}</b>/${s.teams.length} answered`;if(s.state==='revealed'&&s.qkey===qKeyNow())t+=` \u00b7 ${s.right} correct`;
- return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
+ let t=`HOME ${esc(home.cfg.code)} \u00b7 <b>${s.answered}</b>/${s.teams.length} answered \u00b7 ${homeConn(s)} online`;if(s.state==='revealed'&&s.qkey===qKeyNow())t+=` \u00b7 ${s.right} correct`;
+ {const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],z=qSet(q);t+=` \u00b7 ${Math.round(tmrMs()/1000)}s \u00b7 ${z.pts} pts (+${z.b1}/${z.b2}/${z.b3})`}
+ if(home.showRes)t+=' \u00b7 RESULTS ON OBS';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
 function homeBarHTML(){return home.live&&view==='quiz'?`<div class="homebar" id="homebar">${homeBarInner()}</div>`:''}
 function chipInner(){const s=home.st;if(!home.live||!s||s.qkey!==qKeyNow())return'';
  if(s.state==='open'||s.state==='closed')return `HOME \u00b7 <b>${s.answered}</b> / ${s.teams.length} answered`;
@@ -639,22 +672,63 @@ function chipInner(){const s=home.st;if(!home.live||!s||s.qkey!==qKeyNow())retur
 const homeChip=()=>`<div id="hm" class="hm">${chipInner()}</div>`;
 function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t.name));
  return `<div class="st c"><div class="rn">PLAY AT HOME</div><div class="bt">${esc(c.player||'')}</div><div class="jc">${esc(c.code||'')}</div><div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
-function obsHTML(jr){if(obsScore&&obsScore.join)return joinHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
-function homeTeamsHTML(){const t=home.st&&home.st.teams||[];return t.length?t.map(x=>`<div class="ht"><span>${esc(x.name)}</span><span><button onclick="homeTeam('${x.id}',1)">Rename</button><button onclick="homeTeam('${x.id}',0)">Remove</button></span></div>`).join(''):'<p class="note">No teams yet.</p>'}
+function obsHTML(jr){if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
+const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
+function homeTeamsHTML(){const s=home.st,t=s&&s.teams||[];if(!t.length)return '<p class="note">No teams yet.</p>';
+ return t.map(x=>{const on=x.seen!=null&&x.seen<=6,ans=x.letter!=null&&s.state!=='idle';
+  return `<div class="ht"><span class="nm"><i class="dot ${on?'on':''}" title="${on?'Connected':'Not connected'}"></i>${esc(x.name)}${ans?'<span class="tag">Answered</span>':''}<span class="pts">${x.total} pts</span></span><span><button onclick="homeTeam('${x.id}',1)">Rename</button><button onclick="homeTeam('${x.id}',0)">Remove</button></span></div>`}).join('')}
+async function homeKickOffline(){const s=home.st,off=(s&&s.teams||[]).filter(x=>!(x.seen!=null&&x.seen<=6));
+ if(!off.length){document.getElementById('homeMsg').textContent='Everyone is connected.';return}
+ if(!confirm('Remove '+off.length+' team'+(off.length>1?'s':'')+' that are not connected?'))return;
+ try{for(const x of off)await rpc('host_team',{...hk(),p_team:x.id,p_name:null})}catch(e){document.getElementById('homeMsg').textContent=e.message}
+ homePoll()}
 function homePaint(){const b=document.getElementById('homebar');if(b)b.innerHTML=homeBarInner();
- const t=document.getElementById('homeTeams');if(t)t.innerHTML=homeTeamsHTML();const c=document.getElementById('hcount');if(c)c.textContent=home.st?'('+home.st.teams.length+')':'';
+ const t=document.getElementById('homeTeams');if(t)t.innerHTML=homeTeamsHTML();const c=document.getElementById('hcount');if(c)c.textContent=home.st?homeConn(home.st)+' connected of '+home.st.teams.length+' joined':'';
  const m=document.getElementById('homeMsg');if(m&&home.err)m.textContent=home.err;
+ const hs=document.getElementById('hstat');if(hs&&home.st)hs.textContent=home.st.teams.length+' teams \u00b7 '+home.st.answered+' answers on the current question';
  const hb=document.getElementById('homeBtn');if(hb)hb.classList.toggle('hot',home.live);
- if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if(obsScore&&obsScore.join)obsSync(false)}}
+ if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if((obsScore&&obsScore.join)||home.showRes)obsSync(false)}}
 function playerLink(){const c=home.cfg,p=c.player||'';return p?p+(p.includes('?')?'&':'?')+'r='+c.code:''}
-function homeRender(){const c=home.cfg,L=home.live;
- document.getElementById('homeBody').innerHTML=`<h2>Play at home</h2>
- <p class="note" style="margin-top:0">Players tap the first letter of the answer on their phones. 5 points per correct answer, plus 3, 2 and 1 for the fastest three. Run <b>supabase-setup.sql</b> once in your project first.</p>
+function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
+ const tabs=`<div class="htabs"><button class="htab ${t==='setup'?'on':''}" onclick="homeTab('setup')">Setup</button><button class="htab ${t==='players'?'on':''}" onclick="homeTab('players')">Players</button><button class="htab ${t==='controls'?'on':''}" onclick="homeTab('controls')">Controls</button></div>`;
+ let body;
+ if(t==='players'){
+  body=L?`<div class="hl">Teams</div><p class="note" id="hcount" style="margin:2px 0 8px"></p><div id="homeTeams"></div><div class="modal-actions" style="justify-content:flex-start;margin-top:12px"><button class="close danger" onclick="homeKickOffline()">Remove teams that are not connected</button></div>`:'<p class="note" style="margin-top:0">Start a room on the Setup tab to see who joins.</p>';
+ }else if(t==='controls'){
+  const row=(fn,label,desc,cls)=>`<div class="cbk"><button class="close ${cls||''}" onclick="${fn}">${label}</button><span class="note">${desc}</span></div>`;
+  body=(L?`<div class="hl">Room <b>${esc(c.code)}</b></div><p class="note" id="hstat" style="margin:2px 0 12px"></p>`+
+    row("homeClear('q')",'Clear this question','Wipes the answers for the question on screen and lets teams answer it again.')+
+    row("homeClear('all')",'Clear all answers and points','Starts the scoring from zero. Teams stay in the room.','danger')+
+    row("homeClear('teams')",'Remove all teams','Everyone has to join again. The room code stays the same.','danger')+
+    row("homeNewRoom()",'Start a new room','Deletes this room and creates a fresh one with a new code.','danger')+
+    row("homeStop()",'Stop &amp; delete room','Ends home play and deletes the room, its teams and its points.','danger')
+   :'<p class="note" style="margin-top:0">Start a room on the Setup tab to see the room controls.</p>')+
+   '<div class="hl" style="margin-top:14px">This device</div>'+
+   row("resetProgress()",'Reset quiz progress and scores','Clears the scores slide, imported team names and which questions have been done. The quiz stays loaded.','danger');
+ }else{
+  body=`<p class="note" style="margin-top:0">Players tap the first letter of the answer on their phones. 5 points per correct answer, plus 3, 2 and 1 for the fastest three. Run <b>supabase-setup.sql</b> once in your project first.</p>
  <div class="hl">Supabase project URL</div><input class="hin" value="${esc(c.url||'')}" placeholder="https://xxxx.supabase.co" onchange="homeField('url',this.value)">
  <div class="hl">Anon / publishable key</div><input class="hin" value="${esc(c.key||'')}" onchange="homeField('key',this.value)">
  <div class="hl">Player page address</div><input class="hin" value="${esc(c.player||'')}" placeholder="https://your-site/player.html" onchange="homeField('player',this.value)">
- ${L?`<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div><div class="hl">Player link</div><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><div class="hl">Teams <span id="hcount"></span></div><div id="homeTeams"></div>`:''}
- <div class="modal-actions" style="justify-content:flex-start;margin-top:12px">${L?`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button><button class="close danger" onclick="homeStop()">Stop &amp; delete room</button>`:`<button class="close" onclick="homeStart()">Start room</button>`}</div><div class="note" id="homeMsg"></div>`;homePaint()}
+ ${L?`<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div><div class="hl">Player link</div><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><p class="note">See who is connected on the Players tab.</p>`:''}
+ <div class="modal-actions" style="justify-content:flex-start;margin-top:12px">${L?`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`:`<button class="close" onclick="homeStart()">Start room</button>`}</div>`;
+ }
+ document.getElementById('homeBody').innerHTML=`<h2>Play at home</h2>${tabs}${body}<div class="note" id="homeMsg"></div>`;homePaint()}
+function homeTab(t){home.tab=t;homeRender()}
+async function homeClear(kind){
+ const msg={q:'Clear the answers for this question?',all:'Clear ALL answers and points for every team? Teams stay in the room.',teams:'Remove every team from the room? They will need to rejoin.'}[kind],m=document.getElementById('homeMsg');
+ if(kind==='q'&&view!=='quiz'){m.textContent='Open a question on the host first.';return}
+ if(!confirm(msg))return;
+ try{
+  if(kind==='q')await rpc('clear_question',{...hk(),p_qkey:qKeyNow()});
+  else if(kind==='all')await rpc('clear_answers',hk());
+  else await rpc('clear_teams',hk());
+ }catch(e){m.textContent=e.message;return}
+ revealed=false;home.err='';home.openedQ=kind==='q'?qKeyNow():null;if(kind==='q')tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};m.textContent='Done.';
+ renderRounds();render();if(kind!=='q')homeSync();homeTimer();homePoll()}
+async function homeNewRoom(){if(!confirm('Delete this room and start a new one with a new code?'))return;
+ try{await rpc('delete_room',hk())}catch(e){}
+ home.cfg.code='';home.cfg.hk='';home.live=false;home.st=null;home.openedQ=null;home.acc={};home.tab='setup';await homeStart()}
 function homeField(k,v){home.cfg[k]=String(v).trim();homeSave()}
 function openHome(){homeRender();document.getElementById('homeModal').classList.remove('hidden');homePoll()}
 function closeHome(){document.getElementById('homeModal').classList.add('hidden')}
@@ -662,7 +736,7 @@ async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg')
  if(!c.url||!c.key){m.textContent='Enter the project URL and key first.';return}
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
- homeSave();home.live=true;home.err='';home.openedQ=null;homeRender();homePoll();homeSync()}
+ homeSave();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='setup';homeRender();homePoll();homeSync()}
 async function homeStop(){if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;homeRender();render()}

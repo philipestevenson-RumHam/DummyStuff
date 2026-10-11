@@ -41,6 +41,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .foot{padding:10px 16px;text-align:center}
 .foot button{background:none;color:var(--soft);text-decoration:underline;font-size:13px;padding:8px}
 .qc{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px 14px;font-weight:800;font-size:clamp(16px,4.6vw,22px);line-height:1.25;overflow-wrap:anywhere}
+.numdisp{width:100%;max-width:360px;background:#fff;color:var(--ink);border-radius:14px;padding:10px 14px;font:900 clamp(34px,11vw,48px)/1.1 Arial,sans-serif;min-height:1.3em;letter-spacing:.04em;overflow:hidden}
+.npad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:360px}
+.nk{height:clamp(52px,9.5vh,72px);border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(24px,7vw,32px);box-shadow:0 4px 0 #0a2250}
+.nk:active{background:var(--yellow);color:var(--ink);transform:translateY(3px);box-shadow:0 1px 0 #0a2250}
+.nk.nc{background:linear-gradient(180deg,#8c3b3b,#5c2323);box-shadow:0 4px 0 #3a1414;font-size:clamp(13px,3.8vw,17px)}
+.nk.ns{background:linear-gradient(180deg,#ffe95a,#d4b400);color:var(--ink);box-shadow:0 4px 0 #8a7500;font-size:clamp(13px,3.8vw,17px)}
+.lock.num{border-radius:24px;width:auto;min-width:min(40vw,170px);aspect-ratio:auto;padding:14px 28px;font-size:clamp(34px,12vw,60px)}
 .tm{font:900 clamp(26px,8vw,38px)/1 Arial,sans-serif;min-width:3.4em;padding:6px 18px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff}
 .tm:empty{display:none}.tm.warn{color:var(--yellow)}.tm.crit{background:var(--red);color:#fff}
 #net{position:fixed;left:0;right:0;top:0;background:var(--red);color:#fff;text-align:center;font-weight:900;font-size:13px;padding:4px;display:none;z-index:9}
@@ -113,7 +120,12 @@ async function poll() {
 }
 
 const showL = l => l === 'X' ? 'X/Y' : l;
-let tmr = { state: 'idle', left: 0, at: 0 };
+let tmr = { state: 'idle', left: 0, at: 0 }, numBuf = '', numQ = null;
+function numpad() {
+  return `<div class="prompt">Type your answer, then press Submit</div><div class="numdisp" id="numdisp">${esc(numBuf) || '&ndash;'}</div><div class="npad">` +
+    [1,2,3,4,5,6,7,8,9].map(d => `<button class="nk" data-k="${d}">${d}</button>`).join('') +
+    `<button class="nk nc" data-k="C">CLEAR</button><button class="nk" data-k="0">0</button><button class="nk ns" data-k="S">SUBMIT</button></div>`;
+}
 function keypad() {
   const ks = []; for (const c of 'ABCDEFGHIJKLMNOPQRSTUVW') ks.push([c, c]); ks.push(['X', 'X/Y']); ks.push(['Z', 'Z']);
   return `<div class="prompt">Tap the first letter of the answer</div><div class="pad">` +
@@ -128,26 +140,28 @@ function draw(s) {
   if (pendQ !== null && pendQ !== s.qkey) { pend = null; pendQ = null; }
   if (!flying && pend && !m.letter) { pend = null; pendQ = null; }
   const L = m.letter || (pendQ === s.qkey ? pend : null);
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a].join('|');
+  if (s.qkey !== numQ) { numQ = s.qkey; numBuf = ''; }
+  const isNum = s.qtype === 'number';
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype].join('|');
   if (key === sig) return; sig = key;
 
   const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : '';
-  const lock = l => `<div class="lock ${l === 'X' ? 'xy' : ''}">${esc(showL(l))}</div>`;
+  const lock = l => `<div class="lock ${isNum ? 'num' : l === 'X' ? 'xy' : ''}">${esc(isNum ? l : showL(l))}</div>`;
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
   let body;
   if (s.state === 'open') {
-    body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : keypad());
+    body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : keypad()));
   } else if (s.state === 'closed') {
     body = `<div id="tmr" class="tm"></div>${qc}` + (L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
              : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`);
   } else if (s.state === 'revealed') {
-    const letters = (s.correct || []).map(showL).join(' / ');
+    const letters = (s.correct || []).map(isNum ? (x => x) : showL).join(' / ');
     let res;
     if (!m.letter) res = `<div class="res none">No answer</div>`;
     else if (m.ok) res = `<div class="res ok">&#10003; Correct +${m.points}</div>` + (m.bonus ? `<div class="bonus">Includes +${m.bonus} speed bonus!</div>` : '') + (secs ? `<div class="sub">${secs}</div>` : '');
-    else res = `<div class="res bad">&#10007; You chose ${esc(showL(m.letter))}</div>`;
+    else res = `<div class="res bad">&#10007; You ${isNum ? 'answered' : 'chose'} ${esc(isNum ? m.letter : showL(m.letter))}</div>`;
     const f = (s.fastest || []).map(x => `<li><b>${esc(x.name)}</b> +${x.bonus}</li>`).join('');
-    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
+    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
   } else {
     body = `<div class="lock x">&hellip;</div><div class="cap">Get ready</div><div class="sub">Waiting for the next question</div>`;
   }
@@ -171,6 +185,15 @@ setInterval(tickTimer, 200);
 app.addEventListener('click', e => {
   const k = e.target.closest && e.target.closest('.k');
   if (k) { tap(k.dataset.l); return; }
+  const nk = e.target.closest && e.target.closest('.nk');
+  if (nk) {
+    const v = nk.dataset.k;
+    if (v === 'C') numBuf = '';
+    else if (v === 'S') { if (numBuf) tap(numBuf); return; }
+    else if (numBuf.length < 9) numBuf = numBuf === '0' ? v : numBuf + v;
+    const d = $('numdisp'); if (d) d.innerHTML = esc(numBuf) || '&ndash;';
+    return;
+  }
   if (e.target.id === 'lv' && confirm('Leave this team?')) { me = null; saveMe(); joinView(''); }
 });
 
