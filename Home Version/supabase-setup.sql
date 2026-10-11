@@ -45,6 +45,8 @@ alter table rooms add column if not exists b2  int not null default 2;
 alter table rooms add column if not exists b3  int not null default 1;
 alter table rooms add column if not exists qtype text not null default 'letter';
 alter table rooms add column if not exists qopts text[];
+alter table rooms add column if not exists phase text not null default 'contents';
+alter table rooms add column if not exists pinfo jsonb;
 alter table teams add column if not exists last_seen timestamptz default now();
 
 -- Nobody can touch the tables directly. Everything goes through the functions below.
@@ -110,7 +112,7 @@ begin
   select * into r from rooms where code = upper(btrim(p_room));
   if r.qkey is not distinct from p_qkey and r.state <> 'idle' then
     update rooms set correct = c, qtext = p_question, atext = p_answer, qtype = v_type, qopts = v_opts,
-                     pts = v_pts, b1 = v1, b2 = v2, b3 = v3 where code = r.code;
+                     pts = v_pts, b1 = v1, b2 = v2, b3 = v3, phase = 'quiz', pinfo = null where code = r.code;
     return;
   end if;
   update rooms set
@@ -119,11 +121,20 @@ begin
     qtext = p_question,
     atext = p_answer,
     qtype = v_type, qopts = v_opts,
-    pts = v_pts, b1 = v1, b2 = v2, b3 = v3,
+    pts = v_pts, b1 = v1, b2 = v2, b3 = v3, phase = 'quiz', pinfo = null,
     timer_state = 'idle', timer_end = null, timer_left = null,
     state = case when p_qkey = any(done) then 'revealed' else 'open' end,
     opened_at = case when p_qkey = any(done) then opened_at else clock_timestamp() end
   where code = r.code;
+end $$;
+
+-- Tells the phones which screen the host is on (contents, round, quiz, score or end) and what to show there.
+create or replace function set_phase(p_room text, p_key text, p_phase text, p_info jsonb default null) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform _chk(p_room, p_key);
+  if p_phase not in ('contents', 'round', 'quiz', 'score', 'end') then raise exception 'Bad phase'; end if;
+  update rooms set phase = p_phase, pinfo = p_info where code = upper(btrim(p_room));
 end $$;
 
 -- Keeps the players' countdown in step with the host's timer.
@@ -319,6 +330,8 @@ begin
     'q', case when r.state <> 'idle' then r.qtext end,
     'qtype', case when r.state <> 'idle' then r.qtype end,
     'opts', case when r.state <> 'idle' and r.qtype = 'multi' then to_json(r.qopts) end,
+    'phase', r.phase,
+    'pinfo', case when r.state = 'idle' then r.pinfo end,
     'a', case when r.state = 'revealed' then r.atext end,
     'timer', json_build_object('state', r.timer_state,
         'left', case when r.timer_state = 'run'

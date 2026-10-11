@@ -45,6 +45,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .ob{min-height:clamp(52px,9vh,68px);padding:10px 16px;border-radius:14px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(18px,5.2vw,24px);line-height:1.15;box-shadow:0 4px 0 #0a2250;overflow-wrap:anywhere}
 .ob:active{background:var(--yellow);color:var(--ink);transform:translateY(3px);box-shadow:0 1px 0 #0a2250}
 .lock.opt{border-radius:22px;width:auto;max-width:94%;min-width:min(40vw,170px);aspect-ratio:auto;padding:16px 26px;font-size:clamp(24px,7.4vw,38px);line-height:1.15;overflow-wrap:anywhere}
+.sb{list-style:none;margin:0;padding:0;width:100%;max-width:440px;max-height:52vh;overflow:auto;text-align:left}
+.sb li{display:flex;gap:10px;align-items:center;padding:8px 12px;margin:4px 0;border-radius:10px;background:rgba(255,255,255,.1);font-weight:800}
+.sb b{width:1.8em;color:var(--cyan)}.sb span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sb em{font-style:normal;color:var(--yellow)}
+.sb li.me{background:var(--yellow);color:var(--ink)}.sb li.me b,.sb li.me em{color:var(--ink)}
+.big3{font:900 clamp(30px,9vw,44px)/1.1 Arial,sans-serif;color:var(--yellow);overflow-wrap:anywhere}
 .numdisp{width:100%;max-width:360px;background:#fff;color:var(--ink);border-radius:14px;padding:10px 14px;font:900 clamp(34px,11vw,48px)/1.1 Arial,sans-serif;min-height:1.3em;letter-spacing:.04em;overflow:hidden}
 .npad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:360px}
 .nk{height:clamp(52px,9.5vh,72px);border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(24px,7vw,32px);box-shadow:0 4px 0 #0a2250}
@@ -125,6 +130,19 @@ async function poll() {
 
 const showL = l => l === 'X' ? 'X/Y' : l;
 let tmr = { state: 'idle', left: 0, at: 0 }, numBuf = '', numQ = null;
+function board(rows) {
+  if (!rows || !rows.length) return '<div class="sub">Scores coming up&hellip;</div>';
+  const mine = n => me && String(n).toLowerCase() === String(me.name).toLowerCase();
+  return '<ol class="sb">' + rows.map(r => `<li class="${mine(r.n) ? 'me' : ''}"><b>${esc(r.p)}</b><span>${esc(r.n)}</span><em>${esc(r.s)}</em></li>`).join('') + '</ol>';
+}
+function waitView(s) {
+  const ph = s.phase || 'contents', pi = s.pinfo || {};
+  if (ph === 'round') return `<div class="cap">Round ${esc(pi.n)}</div>${pi.title ? `<div class="big3">${esc(pi.title)}</div>` : ''}<div class="sub">Waiting for the round to start</div>`;
+  if (ph === 'quiz') return `<div class="lock x">&hellip;</div><div class="cap">Get ready</div><div class="sub">Waiting for the next question</div>`;
+  if (ph === 'score') return `<div class="cap">${esc(pi.title || 'Scores')}</div>${board(pi.rows)}`;
+  if (ph === 'end') return `<div class="big3">That's the quiz!</div><div class="sub">Thanks for playing</div>${pi.rows && pi.rows.length ? `<div class="cap">Final scores</div>${board(pi.rows)}` : ''}`;
+  return `<div class="lock x">&hellip;</div><div class="cap">Waiting for the quiz to start</div><div class="sub">The host will begin shortly</div>`;
+}
 function optpad(o) {
   return `<div class="prompt">Pick your answer</div><div class="opts">` + o.map((t, i) => `<button class="ob" data-l="${i}">${esc(t)}</button>`).join('') + '</div>';
 }
@@ -149,7 +167,7 @@ function draw(s) {
   const L = m.letter || (pendQ === s.qkey ? pend : null);
   if (s.qkey !== numQ) { numQ = s.qkey; numBuf = ''; }
   const isNum = s.qtype === 'number', isMulti = s.qtype === 'multi', opts = s.opts || [];
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~')].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null)].join('|');
   if (key === sig) return; sig = key;
 
   const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : '';
@@ -170,7 +188,7 @@ function draw(s) {
     const f = (s.fastest || []).map(x => `<li><b>${esc(x.name)}</b> +${x.bonus}</li>`).join('');
     body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum && !isMulti ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
   } else {
-    body = `<div class="lock x">&hellip;</div><div class="cap">Get ready</div><div class="sub">Waiting for the next question</div>`;
+    body = waitView(s);
   }
   app.innerHTML = `<header><span class="tn">${esc(me.name)}</span><span class="tot">${m.total || 0} pts &middot; #${m.rank || '-'}</span></header>
     <div class="main">${body}</div><div class="foot"><button id="lv">Not your team? Leave</button></div>`;

@@ -391,7 +391,7 @@ function renderMain(){
     <span class="pill qn">Question ${String(q.number).padStart(2,'0')}</span>
     <span class="pill cat">${esc(q.category||'')}</span>
     ${q.isPicture?'<span class="pill">PICTURE</span>':''}
-    <span class="mr">${tmrBtn()}${aimg}<span class="pill points">${q.points||0} point${q.points==1?'':'s'}</span></span>
+    <span class="mr">${tmrBtn()}${aimg}<span class="pill points">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span>
    </div>
    <div class="qbody ${img?'pic':''}"><div class="qleft">
      <div class="qreg" id="qreg"><div class="lrow"><span class="label">Question</span>${pb('q',q.qAudio)}</div><div class="question" id="qtxt">${esc(q.question)}</div></div>
@@ -501,7 +501,7 @@ function obsHTML0(jr){
  if(view==='score')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">Complete</div></div>`;
  if(view==='round')return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">${esc(r.title)}</div></div>`;
  const q=r.questions[qIndex],M=quiz.media||{},im=q.image&&M[q.image]?`<img class="im" src="${M[q.image]}" alt="">`:'',as=authorSrc(q);
- return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${tm.s!=='idle'?obsTmr():''}${as?`<img class="au" src="${as}" alt="">`:''}<span class="pl y">${q.points||0} point${q.points==1?'':'s'}</span></span></div>
+ return `<div class="st"><div class="mt"><span class="pl r">Round ${esc(r.number)}</span><span class="pl y">Question ${String(q.number).padStart(2,'0')}</span><span class="pl">${esc(q.category||'')}</span><span class="mr">${tm.s!=='idle'?obsTmr():''}${as?`<img class="au" src="${as}" alt="">`:''}<span class="pl y">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span></div>
  <div class="bd ${im?'':'np'}"><div class="lf"><div class="qr" id="qreg"><div class="q" id="qtxt">${esc(q.question)}</div></div><div class="ar ${revealed?(jr?'pop':''):'v'}" id="areg"><div class="a" id="atxt">${esc(q.answer)}</div>${q.info?`<div class="info">${esc(q.info)}</div>`:''}</div></div>${im}</div></div>`;
 }
 function obsBtnUpd(){document.getElementById('obsBtn').classList.toggle('hot',!!(obs&&!obs.closed))}
@@ -552,7 +552,20 @@ const OBS_CSS2=`.sbT{font:calc(var(--u)*92)/1 var(--d);color:#FFD90E;text-transf
 .rsPl{font:calc(var(--u)*56)/1 var(--d)}.rsNm{font:calc(var(--u)*54)/1.1 var(--d);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rsBn{font:calc(var(--u)*130)/1 var(--d)}.rsBl{font:calc(var(--u)*32)/1 var(--d);letter-spacing:.08em;text-transform:uppercase}.rsTm{font:calc(var(--u)*34)/1 var(--d)}
 .rsE{font:calc(var(--u)*60)/1 var(--d);color:#b9c6da;align-self:center}
-@keyframes rsin{from{transform:translateY(calc(var(--u)*60));opacity:0}to{transform:none;opacity:1}}`;
+@keyframes rsin{from{transform:translateY(calc(var(--u)*60));opacity:0}to{transform:none;opacity:1}}
+.jn{align-items:stretch}.jh{display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*36);flex-shrink:0}
+.jlg{height:calc(var(--u)*120);width:auto;display:block}
+.jt{font:calc(var(--u)*80)/1 var(--d);color:#FFD90E;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(var(--u)*1300)}
+.jm{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*110)}
+.jleft{display:flex;flex-direction:column;align-items:center;min-width:0}
+.jk{font:calc(var(--u)*64)/1 var(--d);color:#20C7D9;letter-spacing:.06em}
+.jcl{font:calc(var(--u)*34)/1 var(--d);color:#b9c6da;letter-spacing:.14em;margin-top:calc(var(--u)*20)}
+.jn .jc{font-size:calc(var(--u)*200);line-height:1.05}
+.ju{font:calc(var(--u)*32)/1.2 var(--d);color:#fff;max-width:calc(var(--u)*900);overflow-wrap:anywhere;text-align:center;margin-top:calc(var(--u)*10)}
+.jqr{background:#fff;border-radius:calc(var(--u)*24);padding:calc(var(--u)*20);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*8);flex-shrink:0}
+.jqr svg{width:calc(var(--u)*470);height:calc(var(--u)*470);display:block}
+.jqc{font:calc(var(--u)*40)/1 var(--d);color:#050505;letter-spacing:.08em}
+.jn .jl{flex-shrink:0;max-height:calc(var(--u)*100);overflow:hidden;margin:calc(var(--u)*10) auto 0}`;
 function standings(up){const rows=[];for(let t=0;t<teams;t++){let v=0;for(let i=0;i<=up;i++){const e=scores[i];if(e&&e.v[t]!=null)v+=+e.v[t]}rows.push({t,s:Math.round(v*100)/100})}
  const srt=[...rows].sort((a,b)=>b.s-a.s||a.t-b.t);let p=0;srt.forEach((x,i)=>{if(i===0||x.s!==srt[i-1].s)p=i+1;x.p=p});return{rows,srt}}
 const layoutOf=n=>({r:Math.min(n,15),c:n>15?2:1});
@@ -573,7 +586,7 @@ function restartQuiz(){const sc=scores,t=teams;loadQuiz(quiz);scores=sc;teams=t;
 function showScoreObs(final){if(!(obs&&!obs.closed))toggleOBS();if(!obs)return;obsScore={final:!!final};render()}
 function hideScoreObs(){obsScore=null;render()}
 function setTeams(v){teams=Math.max(1,Math.min(30,Math.round(+v)||teams));saveSoon();renderRounds();render()}
-function updScore(){const sd=standings(scoreR),any=hasScores(scoreR);
+function updScore(){homePhaseSoon();const sd=standings(scoreR),any=hasScores(scoreR);
  sd.rows.forEach(x=>{const row=document.getElementById('sr'+x.t);if(!row)return;row.querySelector('.stot').textContent=any?x.s:'\u2013';const k=row.querySelector('.srank');k.textContent=any?ord(x.p):'';k.className='srank'+(any&&x.p<=3?' r'+x.p:'')})}
 function renderScore(){
  const R=quiz.rounds,fin=scoreR>=R.length,r=R[Math.min(scoreR,R.length-1)],ent=scores[scoreR],from=ent?ent.from:fromOf(scoreR),last=scoreR===R.length-1,on=obsBoardOn(),lay=layoutOf(teams);
@@ -643,6 +656,7 @@ function resultsHTML(){const s=home.st;if(!s)return '<div class="st c"><div clas
  const card=(i,d)=>{const t=f[i];return t?`<div class="rsC p${i+1}" style="animation-delay:${d}ms"><div class="rsPl">${lab[i]}</div><div class="rsNm">${esc(t.name)}</div><div class="rsBn">+${t.bonus}</div><div class="rsBl">bonus points</div><div class="rsTm">${t.ms!=null?(t.ms/1000).toFixed(2)+'s':''}</div></div>`:`<div class="rsC p${i+1} empty" style="animation-delay:${d}ms"><div class="rsPl">${lab[i]}</div><div class="rsNm">&mdash;</div></div>`};
  const pod=f.length?`<div class="rsP">${card(1,1100)}${card(0,1900)}${card(2,500)}</div>`:'<div class="rsP"><div class="rsE">Nobody earned a speed bonus</div></div>';
  return `<div class="st"><div class="rsT">Results</div><div class="rsA">The answer: <b>${esc(q&&q.answer||'')}</b></div><div class="rsS"><div class="rsB" style="color:#2ecc71"><i>${ok}</i><span>Correct</span></div><div class="rsB" style="color:#ff5d5d"><i>${bad}</i><span>Incorrect</span></div><div class="rsB" style="color:#b9c6da"><i>${un}</i><span>Unanswered</span></div></div>${pod}</div>`}
+function ptsN(q){return home.live?qSet(q).pts:(+q.points||0)}
 function qSet(q){const n=(v,d)=>{v=(v===''||v==null)?NaN:Number(v);return isFinite(v)&&v>=0?v:d};return{pts:n(q&&q.qpoints,5),b1:n(q&&q.q1st,3),b2:n(q&&q.q2nd,2),b3:n(q&&q.q3rd,1)}}
 function qInfo(qk){const [ri,qi]=qk.split('-').map(Number),q=quiz.rounds[ri]&&quiz.rounds[ri].questions[qi];const z=qSet(q);return{p_question:q?String(q.question||''):null,p_answer:q?String(q.answer||''):null,p_points:z.pts,p_b1:z.b1,p_b2:z.b2,p_b3:z.b3,p_qtype:qTypeOf(q),p_options:qTypeOf(q)==='multi'?optsOf(q):null}}
 function homeTimer(){if(!home.live)return;const st=tm.s,left=Math.round(tmrLeft());hq(async()=>{await rpc('set_timer',{...hk(),p_state:st,p_left:left})})}
@@ -658,7 +672,15 @@ function accPrompt(){const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].qu
 function accNow(){const k=qKeyNow();if(home.acc[k])return home.acc[k];const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];if(qTypeOf(q)==='number'){const w=wholeOf(q.qanswer);return w===''?[]:[w]}
  if(qTypeOf(q)==='multi'){const i=multiIdx(q);return i<0?[]:[String(i)]}
  if(q&&q.qanswer!=null&&String(q.qanswer)!==''&&(!q.qtype||q.qtype==='letter')){const l=(String(q.qanswer).toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x);if(l.length)return l}return q?defLetters(q.answer):[]}
-function homeSync(){if(!home.live)return;if(view==='quiz'&&!revealed)homeOpen(qKeyNow());else homeIdle()}
+function phaseInfo(){const R=quiz.rounds,rows=up=>hasScores(up)?standings(up).srt.map(x=>({p:x.p,n:tn(x.t),s:x.s})):[];
+ if(view==='round'){const r=R[roundIndex]||{};return['round',{n:r.number,title:r.title||''}]}
+ if(view==='quiz')return['quiz',{}];
+ if(view==='score'){const fin=scoreR>=R.length,up=fin?R.length-1:scoreR;return['score',{title:fin?'Final scores':'Scores after Round '+R[scoreR].number,rows:rows(up)}]}
+ if(view==='end')return['end',{rows:rows(R.length-1)}];
+ return['contents',{}]}
+function homePhase(){if(!home.live)return;const [ph,info]=phaseInfo();hq(async()=>{await rpc('set_phase',{...hk(),p_phase:ph,p_info:info})})}
+let phT=0;function homePhaseSoon(){if(!home.live)return;clearTimeout(phT);phT=setTimeout(homePhase,700)}
+function homeSync(){if(!home.live)return;if(view==='quiz'&&!revealed)homeOpen(qKeyNow());else homeIdle();homePhase()}
 function homeOpen(qk){hq(async()=>{if(home.openedQ===qk)return;await rpc('open_question',{...hk(),p_qkey:qk,p_correct:accNow(),...qInfo(qk)});home.openedQ=qk;home.err='';homePoll()})}
 function homeIdle(){hq(async()=>{if(home.openedQ==null)return;await rpc('set_state',{...hk(),p_state:'idle'});home.openedQ=null;homePoll()})}
 function homeClose(){if(!home.live||view!=='quiz'||revealed)return;hq(async()=>{if(home.openedQ==null)return;await rpc('set_state',{...hk(),p_state:'closed'});homePoll()})}
@@ -678,8 +700,69 @@ function chipInner(){const s=home.st;if(!home.live||!s||s.qkey!==qKeyNow())retur
  if(s.state==='open'||s.state==='closed')return `HOME \u00b7 <b>${s.answered}</b> / ${s.teams.length} answered`;
  if(s.state==='revealed'){const f=s.teams.filter(t=>t.bonus>0).sort((a,b)=>b.bonus-a.bonus);return f.length?'Fastest: '+f.map(t=>`<b>${esc(t.name)}</b> +${t.bonus}`).join(' \u00b7 '):`${s.right} correct`}return''}
 const homeChip=()=>`<div id="hm" class="hm">${chipInner()}</div>`;
-function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t.name));
- return `<div class="st c"><div class="rn">PLAY AT HOME</div><div class="bt">${esc(c.player||'')}</div><div class="jc">${esc(c.code||'')}</div><div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
+function qrSVG(text){
+ const bytes=[...new TextEncoder().encode(text)];
+ const EC=[null,[10,1,16,0,0],[16,1,28,0,0],[26,1,44,0,0],[18,2,32,0,0],[24,2,43,0,0],[16,4,27,0,0],[18,4,31,0,0],[22,2,38,2,39],[22,3,36,2,37],[26,4,43,1,44]];
+ const AL=[null,[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+ const VI=[0,0,0,0,0,0,0,0x07C94,0x085BC,0x09A99,0x0A4D3];
+ let v=1;for(;v<=10;v++){const e=EC[v];if(bytes.length<=e[1]*e[2]+e[3]*e[4]-(v<10?2:3))break}
+ if(v>10)return '';
+ const e=EC[v],nd=e[1]*e[2]+e[3]*e[4],bits=[],put=(val,n)=>{for(let i=n-1;i>=0;i--)bits.push((val>>i)&1)};
+ put(4,4);put(bytes.length,v<10?8:16);bytes.forEach(b=>put(b,8));put(0,Math.min(4,nd*8-bits.length));
+ while(bits.length%8)bits.push(0);
+ for(let p=0;bits.length<nd*8;p^=1)put(p?0x11:0xEC,8);
+ const data=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=b<<1|bits[i+j];data.push(b)}
+ const exp=new Array(512),log=new Array(256);let x=1;
+ for(let i=0;i<255;i++){exp[i]=x;log[x]=i;x<<=1;if(x&256)x^=0x11D}for(let i=255;i<512;i++)exp[i]=exp[i-255];
+ const mul=(a,b)=>a&&b?exp[log[a]+log[b]]:0;
+ const gen=n=>{let g=[1];for(let i=0;i<n;i++){const ng=new Array(g.length+1).fill(0);for(let j=0;j<g.length;j++){ng[j]^=g[j];ng[j+1]^=mul(g[j],exp[i])}g=ng}return g};
+ const rs=(d,n)=>{const g=gen(n),r=new Array(n).fill(0);for(const b of d){const f=b^r[0];r.shift();r.push(0);if(f)for(let i=0;i<n;i++)r[i]^=mul(g[i+1],f)}return r};
+ const blocks=[];let o=0;for(let i=0;i<e[1]+e[3];i++){const len=i<e[1]?e[2]:e[4];blocks.push(data.slice(o,o+len));o+=len}
+ const eccs=blocks.map(b=>rs(b,e[0])),out=[];
+ for(let i=0;i<Math.max(e[2],e[4]);i++)blocks.forEach(b=>{if(i<b.length)out.push(b[i])});
+ for(let i=0;i<e[0];i++)eccs.forEach(b=>out.push(b[i]));
+ const fb=[];out.forEach(b=>{for(let i=7;i>=0;i--)fb.push((b>>i)&1)});if(v>=2&&v<=6)for(let i=0;i<7;i++)fb.push(0);
+ const N=17+4*v,M=Array.from({length:N},()=>new Array(N).fill(false)),F=Array.from({length:N},()=>new Array(N).fill(false));
+ const set=(r,c,val)=>{M[r][c]=!!val;F[r][c]=true};
+ const finder=(r0,c0)=>{for(let dr=-1;dr<=7;dr++)for(let dc=-1;dc<=7;dc++){const r=r0+dr,c=c0+dc;if(r<0||c<0||r>=N||c>=N)continue;
+  set(r,c,dr>=0&&dr<=6&&dc>=0&&dc<=6&&(dr==0||dr==6||dc==0||dc==6||(dr>=2&&dr<=4&&dc>=2&&dc<=4)))}};
+ finder(0,0);finder(0,N-7);finder(N-7,0);
+ for(let i=8;i<N-8;i++){set(6,i,i%2==0);set(i,6,i%2==0)}
+ const al=AL[v],last=al[al.length-1];
+ for(const r of al)for(const c of al){if((r==6&&c==6)||(r==6&&c==last)||(r==last&&c==6))continue;
+  for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++)set(r+dr,c+dc,Math.max(Math.abs(dr),Math.abs(dc))!=1)}
+ set(N-8,8,true);
+ for(let i=0;i<9;i++){if(!F[8][i])set(8,i,false);if(!F[i][8])set(i,8,false)}
+ for(let i=0;i<8;i++){if(!F[8][N-1-i])set(8,N-1-i,false);if(!F[N-1-i][8])set(N-1-i,8,false)}
+ if(v>=7){const vi=VI[v];for(let i=0;i<18;i++){const bit=(vi>>i)&1,a=Math.floor(i/3),b=i%3+N-11;set(a,b,bit);set(b,a,bit)}}
+ let idx=0;
+ for(let right=N-1;right>=1;right-=2){if(right==6)right=5;
+  for(let vert=0;vert<N;vert++)for(let j=0;j<2;j++){const c=right-j,up=((right+1)&2)==0,r=up?N-1-vert:vert;
+   if(!F[r][c]){M[r][c]=idx<fb.length?!!fb[idx]:false;idx++}}}
+ const masks=[(r,c)=>(r+c)%2==0,(r,c)=>r%2==0,(r,c)=>c%3==0,(r,c)=>(r+c)%3==0,(r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2==0,
+  (r,c)=>r*c%2+r*c%3==0,(r,c)=>(r*c%2+r*c%3)%2==0,(r,c)=>((r+c)%2+r*c%3)%2==0];
+ const build=m=>{const G=M.map(row=>row.slice());
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!F[r][c]&&masks[m](r,c))G[r][c]=!G[r][c];
+  let rem=m;for(let i=0;i<10;i++)rem=(rem<<1)^((rem>>9)*0x537);const fbits=((m<<10)|rem)^0x5412,bit=i=>((fbits>>i)&1)==1;
+  for(let i=0;i<=5;i++)G[i][8]=bit(i);G[7][8]=bit(6);G[8][8]=bit(7);G[8][7]=bit(8);for(let i=9;i<15;i++)G[8][14-i]=bit(i);
+  for(let i=0;i<8;i++)G[8][N-1-i]=bit(i);for(let i=8;i<15;i++)G[N-15+i][8]=bit(i);G[N-8][8]=true;return G};
+ const penalty=G=>{let p=0;
+  for(let t=0;t<2;t++){const g=(a,b)=>t?G[b][a]:G[a][b];
+   for(let a=0;a<N;a++){let run=1;for(let b=1;b<=N;b++){if(b<N&&g(a,b)==g(a,b-1))run++;else{if(run>=5)p+=3+run-5;run=1}}
+    for(let b=0;b+11<=N;b++){let m1=true,m2=true;const A=[1,0,1,1,1,0,1,0,0,0,0],B=[0,0,0,0,1,0,1,1,1,0,1];
+     for(let k=0;k<11;k++){const val=g(a,b+k)?1:0;if(val!=A[k])m1=false;if(val!=B[k])m2=false}if(m1)p+=40;if(m2)p+=40}}}
+  for(let r=0;r<N-1;r++)for(let c=0;c<N-1;c++){const q=G[r][c];if(q==G[r][c+1]&&q==G[r+1][c]&&q==G[r+1][c+1])p+=3}
+  let dark=0;G.forEach(row=>row.forEach(q=>{if(q)dark++}));p+=10*(Math.ceil(Math.abs(dark*20-N*N*10)/(N*N))-1);return p};
+ let best=null,bp=1e9;for(let m=0;m<8;m++){const G=build(m),p=penalty(G);if(p<bp){bp=p;best=G}}
+ const Q=4,S=N+2*Q;let d='';
+ for(let r=0;r<N;r++){let c=0;while(c<N){if(best[r][c]){let s=c;while(c<N&&best[r][c])c++;d+=`M${s+Q} ${r+Q}h${c-s}v1h-${c-s}z`}else c++}}
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" shape-rendering="crispEdges"><rect width="${S}" height="${S}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+
+function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t.name)),link=playerLink(),qr=link?qrSVG(link):'',lg=(document.querySelector('.lgimg')||{}).src||'',addr=String(c.player||'').replace(/^https?:\/\//,'');
+ return `<div class="st jn"><div class="jh">${lg?`<img class="jlg" src="${lg}" alt="">`:''}<div class="jt">${esc(quiz.title||'Quiz Night')}</div></div>
+ <div class="jm"><div class="jleft"><div class="jk">PLAY AT HOME</div><div class="jcl">ROOM CODE</div><div class="jc">${esc(c.code||'')}</div><div class="ju">${esc(addr)}</div></div>${qr?`<div class="jqr">${qr}<div class="jqc">SCAN TO JOIN</div></div>`:''}</div>
+ <div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
 function obsHTML(jr){if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
 const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
 function homeTeamsHTML(){const s=home.st,t=s&&s.teams||[];if(!t.length)return '<p class="note">No teams yet.</p>';
@@ -744,7 +827,7 @@ async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg')
  if(!c.url||!c.key){m.textContent='Enter the project URL and key first.';return}
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
- homeSave();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='setup';homeRender();homePoll();homeSync()}
+ homeSave();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='setup';homeRender();homePoll();homeSync();render()}
 async function homeStop(){if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;homeRender();render()}
