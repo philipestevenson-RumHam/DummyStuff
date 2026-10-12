@@ -43,6 +43,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .qc{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px 14px;font-weight:800;font-size:clamp(16px,4.6vw,22px);line-height:1.25;overflow-wrap:anywhere}
 .opts{display:flex;flex-direction:column;gap:10px;width:100%;max-width:440px}
 .ob{min-height:clamp(52px,9vh,68px);padding:10px 16px;border-radius:14px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(18px,5.2vw,24px);line-height:1.15;box-shadow:0 4px 0 #0a2250;overflow-wrap:anywhere}
+.ob.so{position:relative;padding-left:56px;padding-right:56px}
+.nb{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900}
 .ob.sel{background:linear-gradient(180deg,#ffe95a,#d4b400);color:var(--ink);box-shadow:0 1px 0 #8a7500;transform:translateY(3px)}
 .ob:disabled{cursor:default}
 .ob:active{background:var(--yellow);color:var(--ink);transform:translateY(3px);box-shadow:0 1px 0 #0a2250}
@@ -93,7 +95,7 @@ async function rpc(fn, args) {
   return j;
 }
 
-let flying = false, me = null, timer = 0, errs = 0, sig = '', lastS = null, pend = null, pendQ = null;
+let sortFly = false, flying = false, me = null, timer = 0, errs = 0, sig = '', lastS = null, pend = null, pendQ = null;
 try { me = JSON.parse(localStorage.getItem('rh_team') || 'null'); } catch (e) {}
 const wantRoom = (Q.get('r') || '').toUpperCase();
 if (me && wantRoom && me.room !== wantRoom) me = null;
@@ -133,7 +135,7 @@ async function poll() {
 }
 
 const showL = l => l === 'X' ? 'X/Y' : l;
-let tmr = { state: 'idle', left: 0, at: 0 }, numBuf = '', numQ = null, msPend = new Set(), msFly = 0, msQ = null;
+let tmr = { state: 'idle', left: 0, at: 0 }, numBuf = '', numQ = null, msPend = new Set(), msFly = 0, msQ = null, sortSeq = [], sortQ = null;
 const devilSVG = () => '<svg class="dv" viewBox="0 0 64 64"><path d="M8 4L26 17 11 27z" fill="#b30000"/><path d="M56 4L38 17 53 27z" fill="#b30000"/><circle cx="32" cy="38" r="22" fill="#e11d1d" stroke="#6e0000" stroke-width="3"/><path d="M14 29L29 36 15 41z" fill="#fff"/><path d="M50 29L35 36 49 41z" fill="#fff"/><circle cx="24" cy="37" r="2.6" fill="#111"/><circle cx="40" cy="37" r="2.6" fill="#111"/><path d="M19 47Q32 60 45 47Q32 52 19 47z" fill="#2a0000"/></svg>';
 function evilBar(ev) {
   if (!ev) return '';
@@ -156,6 +158,10 @@ function waitView(s) {
 function selpad(o, picked, closed) {
   return (closed ? '' : `<div class="prompt">Tap every correct answer. You can't undo a tap.</div>`) + '<div class="opts">' +
     o.map((t, i) => `<button class="ob${picked.has(String(i)) ? ' sel' : ''}" data-s="${i}"${picked.has(String(i)) || closed ? ' disabled' : ''}>${esc(t)}</button>`).join('') + '</div>';
+}
+function sortpad(o, seq, locked) {
+  return (locked ? '' : `<div class="prompt">Tap the options in the right order. Tap a number to undo it.</div>`) + '<div class="opts">' +
+    o.map((t, i) => { const p = seq.indexOf(String(i)); return `<button class="ob so${p >= 0 ? ' sel' : ''}" data-o="${i}"${locked ? ' disabled' : ''}>${p >= 0 ? `<span class="nb">${p + 1}</span>` : ''}${esc(t)}</button>`; }).join('') + '</div>';
 }
 function optpad(o) {
   return `<div class="prompt">Pick your answer</div><div class="opts">` + o.map((t, i) => `<button class="ob" data-l="${i}">${esc(t)}</button>`).join('') + '</div>';
@@ -180,11 +186,13 @@ function draw(s) {
   if (!flying && pend && !m.letter) { pend = null; pendQ = null; }
   const L = m.letter || (pendQ === s.qkey ? pend : null);
   if (s.qkey !== numQ) { numQ = s.qkey; numBuf = ''; }
-  const isNum = s.qtype === 'number', isMulti = s.qtype === 'multi', isSel = s.qtype === 'multisel', opts = s.opts || [];
+  const isNum = s.qtype === 'number', isMulti = s.qtype === 'multi', isSel = s.qtype === 'multisel', isSort = s.qtype === 'sort', opts = s.opts || [];
+  if (s.qkey !== sortQ) { sortQ = s.qkey; sortSeq = []; }
+  const seq = m.letter ? String(m.letter).split(',') : sortSeq;
   if (s.qkey !== msQ) { msQ = s.qkey; msPend = new Set(); }
   if (msFly === 0) msPend = new Set();
   const picked = new Set(String(m.letter || '').split(',').filter(x => x !== '').concat([...msPend]));
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+')].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>')].join('|');
   if (key === sig) return; sig = key;
 
   const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : '';
@@ -192,19 +200,19 @@ function draw(s) {
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
   let body;
   if (s.state === 'open') {
-    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (isSort ? sortpad(opts, seq, !!m.letter) + (m.letter ? `<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : ''}</div>` : '') : isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
   } else if (s.state === 'closed') {
-    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (isSel ? selpad(opts, picked, true) + '<div class="sub">Waiting for the answer&hellip;</div>' : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (isSort ? (m.letter ? sortpad(opts, seq, true) + '<div class="sub">Locked in. Waiting for the answer&hellip;</div>' : '<div class="cap">Time\'s up</div><div class="sub">No answer from you</div>') : isSel ? selpad(opts, picked, true) + '<div class="sub">Waiting for the answer&hellip;</div>' : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
              : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`);
   } else if (s.state === 'revealed') {
-    const letters = (s.correct || []).map(isNum ? (x => x) : isSel ? (x => String(x).split(',').map(i => opts[+i] || '').join(' + ')) : isMulti ? (x => opts[+x] || '') : showL).join(' / ');
+    const letters = (s.correct || []).map(isNum ? (x => x) : isSort ? (x => String(x).split(',').map(i => opts[+i] || '').join(' \u2192 ')) : isSel ? (x => String(x).split(',').map(i => opts[+i] || '').join(' + ')) : isMulti ? (x => opts[+x] || '') : showL).join(' / ');
     let res;
     const lose = m.points < 0 ? ` &minus;${-m.points}` : '';
     if (!m.letter) res = `<div class="res ${lose ? 'bad' : 'none'}">No answer${lose}</div>`;
     else if (m.ok) res = `<div class="res ok">&#10003; Correct +${m.points}</div>` + (m.bonus ? `<div class="bonus">Includes +${m.bonus} speed bonus!</div>` : '') + (secs ? `<div class="sub">${secs}</div>` : '');
-    else res = `<div class="res bad">&#10007; You ${isNum ? 'answered' : isSel ? 'selected' : 'chose'} ${esc(isNum ? m.letter : isSel ? String(m.letter).split(',').map(i => opts[+i] || '?').join(', ') : isMulti ? (opts[+m.letter] || '?') : showL(m.letter))}${lose}</div>`;
+    else res = `<div class="res bad">&#10007; You ${isNum ? 'answered' : isSort ? 'ordered' : isSel ? 'selected' : 'chose'} ${esc(isNum ? m.letter : isSort ? String(m.letter).split(',').map(i => opts[+i] || '?').join(' \u2192 ') : isSel ? String(m.letter).split(',').map(i => opts[+i] || '?').join(', ') : isMulti ? (opts[+m.letter] || '?') : showL(m.letter))}${lose}</div>`;
     const f = (s.fastest || []).map(x => `<li><b>${esc(x.name)}</b> +${x.bonus}</li>`).join('');
-    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum && !isMulti && !isSel ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}${s.a && letters && isSel ? `<div class="sub">Correct options: ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
+    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum && !isMulti && !isSel && !isSort ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}${s.a && letters && isSel ? `<div class="sub">Correct options: ${esc(letters)}</div>` : ''}${s.a && letters && isSort ? `<div class="sub">Correct order: ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
   } else {
     body = waitView(s);
   }
@@ -228,6 +236,8 @@ setInterval(tickTimer, 200);
 app.addEventListener('click', e => {
   const k = e.target.closest && e.target.closest('.k');
   if (k) { tap(k.dataset.l); return; }
+  const so = e.target.closest && e.target.closest('.ob[data-o]');
+  if (so) { tapSort(so.dataset.o); return; }
   const sb = e.target.closest && e.target.closest('.ob[data-s]');
   if (sb) { tapSel(sb.dataset.s); return; }
   const ob = e.target.closest && e.target.closest('.ob');
@@ -244,6 +254,19 @@ app.addEventListener('click', e => {
   if (e.target.id === 'lv' && confirm('Leave this team?')) { me = null; saveMe(); joinView(''); }
 });
 
+function tapSort(i) {
+  if (!lastS || lastS.state !== 'open' || (lastS.me && lastS.me.letter) || sortFly) return;
+  const n = (lastS.opts || []).length, at = sortSeq.indexOf(i);
+  if (at >= 0) sortSeq.splice(at, 1); else sortSeq.push(i);
+  sig = ''; draw(lastS);
+  if (navigator.vibrate) navigator.vibrate(25);
+  if (sortSeq.length === n) {
+    sortFly = true;
+    rpc('submit_answer', { p_room: me.room, p_team: me.id, p_secret: me.secret, p_letter: sortSeq.join(',') })
+      .then(() => { sortFly = false; sig = ''; poll(); })
+      .catch(e => { sortFly = false; sortSeq.pop(); toast(e.message); sig = ''; poll(); });
+  }
+}
 function tapSel(i) {
   if (!lastS || lastS.state !== 'open' || msPend.has(i)) return;
   msPend.add(i); msFly++; sig = ''; draw(lastS);
