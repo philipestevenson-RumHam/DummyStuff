@@ -56,6 +56,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .big3{font:900 clamp(30px,9vw,44px)/1.1 Arial,sans-serif;color:var(--yellow);overflow-wrap:anywhere}
 .evil{display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(225,29,29,.22);border:2px solid #e11d1d;border-radius:12px;padding:6px 12px;font-weight:900;font-size:clamp(13px,3.8vw,16px);color:#ffd0d0;width:100%;max-width:440px;text-align:left}
 .evil .dv{height:30px;width:auto;flex:none}
+.evil.fastb{background:rgba(255,217,14,.16);border-color:#FFD90E;color:#fff3b0}.evil .bolt{height:26px;width:26px;color:#FFD90E;flex:none}
+.qc.hold{color:#b9c6da;text-align:center}.ftline{color:#FFD90E !important;font-weight:900}
 .numdisp{width:100%;max-width:360px;background:#fff;color:var(--ink);border-radius:14px;padding:10px 14px;font:900 clamp(34px,11vw,48px)/1.1 Arial,sans-serif;min-height:1.3em;letter-spacing:.04em;overflow:hidden}
 .npad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:360px}
 .nk{height:clamp(52px,9.5vh,72px);border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(24px,7vw,32px);box-shadow:0 4px 0 #0a2250}
@@ -142,6 +144,8 @@ function evilBar(ev) {
   const really = ev.kind === 'really';
   return `<div class="evil">${devilSVG()}${really ? devilSVG() : ''}<span>${really ? 'REALLY EVIL: a wrong answer or no answer' : 'EVIL: a wrong answer'} costs ${esc(ev.pts)} point${+ev.pts === 1 ? '' : 's'}</span></div>`;
 }
+const boltSVG = () => '<svg class="bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6z" fill="currentColor"/></svg>';
+function fastBar(f) { return f ? `<div class="evil fastb">${boltSVG()}<span>FAST TRACK: if only ONE team gets this right, they jump to the lead!</span></div>` : ''; }
 function board(rows) {
   if (!rows || !rows.length) return '<div class="sub">Scores coming up&hellip;</div>';
   const mine = n => me && String(n).toLowerCase() === String(me.name).toLowerCase();
@@ -192,17 +196,17 @@ function draw(s) {
   if (s.qkey !== msQ) { msQ = s.qkey; msPend = new Set(); }
   if (msFly === 0) msPend = new Set();
   const picked = new Set(String(m.letter || '').split(',').filter(x => x !== '').concat([...msPend]));
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>')].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null)].join('|');
   if (key === sig) return; sig = key;
 
-  const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : '';
+  const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : (s.qhidden ? '<div class="qc hold">Get ready&hellip; the question is coming up</div>' : '');
   const lock = l => `<div class="lock ${isNum ? 'num' : isMulti ? 'opt' : l === 'X' ? 'xy' : ''}">${esc(isNum ? l : isMulti ? (opts[+l] || '?') : showL(l))}</div>`;
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
   let body;
   if (s.state === 'open') {
-    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (isSort ? sortpad(opts, seq, !!m.letter) + (m.letter ? `<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : ''}</div>` : '') : isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}${qc}` + (isSort ? sortpad(opts, seq, !!m.letter) + (m.letter ? `<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : ''}</div>` : '') : isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
   } else if (s.state === 'closed') {
-    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${qc}` + (isSort ? (m.letter ? sortpad(opts, seq, true) + '<div class="sub">Locked in. Waiting for the answer&hellip;</div>' : '<div class="cap">Time\'s up</div><div class="sub">No answer from you</div>') : isSel ? selpad(opts, picked, true) + '<div class="sub">Waiting for the answer&hellip;</div>' : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}${qc}` + (isSort ? (m.letter ? sortpad(opts, seq, true) + '<div class="sub">Locked in. Waiting for the answer&hellip;</div>' : '<div class="cap">Time\'s up</div><div class="sub">No answer from you</div>') : isSel ? selpad(opts, picked, true) + '<div class="sub">Waiting for the answer&hellip;</div>' : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
              : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`);
   } else if (s.state === 'revealed') {
     const letters = (s.correct || []).map(isNum ? (x => x) : isSort ? (x => String(x).split(',').map(i => opts[+i] || '').join(' \u2192 ')) : isSel ? (x => String(x).split(',').map(i => opts[+i] || '').join(' + ')) : isMulti ? (x => opts[+x] || '') : showL).join(' / ');
@@ -212,7 +216,7 @@ function draw(s) {
     else if (m.ok) res = `<div class="res ok">&#10003; Correct +${m.points}</div>` + (m.bonus ? `<div class="bonus">Includes +${m.bonus} speed bonus!</div>` : '') + (secs ? `<div class="sub">${secs}</div>` : '');
     else res = `<div class="res bad">&#10007; You ${isNum ? 'answered' : isSort ? 'ordered' : isSel ? 'selected' : 'chose'} ${esc(isNum ? m.letter : isSort ? String(m.letter).split(',').map(i => opts[+i] || '?').join(' \u2192 ') : isSel ? String(m.letter).split(',').map(i => opts[+i] || '?').join(', ') : isMulti ? (opts[+m.letter] || '?') : showL(m.letter))}${lose}</div>`;
     const f = (s.fastest || []).map(x => `<li><b>${esc(x.name)}</b> +${x.bonus}</li>`).join('');
-    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum && !isMulti && !isSel && !isSort ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}${s.a && letters && isSel ? `<div class="sub">Correct options: ${esc(letters)}</div>` : ''}${s.a && letters && isSort ? `<div class="sub">Correct order: ${esc(letters)}</div>` : ''}</div>${res}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
+    body = `${qc}<div class="ans">The answer is<b>${esc(s.a || letters || '?')}</b>${s.a && letters && !isNum && !isMulti && !isSel && !isSort ? `<div class="sub">Letter ${esc(letters)}</div>` : ''}${s.a && letters && isSel ? `<div class="sub">Correct options: ${esc(letters)}</div>` : ''}${s.a && letters && isSort ? `<div class="sub">Correct order: ${esc(letters)}</div>` : ''}</div>${res}${s.ft ? `<div class="sub ftline">FAST TRACK: ${esc(s.ft.name)} jumps to the lead!</div>` : ''}${f ? `<div class="cap">Fastest</div><ul class="fast">${f}</ul>` : ''}`;
   } else {
     body = waitView(s);
   }
