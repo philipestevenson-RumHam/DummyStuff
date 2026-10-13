@@ -77,10 +77,11 @@ ol{margin:0;padding-left:34px}li{padding:2px 0}
 <div class="pane two" data-t="setup" hidden>
 <section class="p"><h2>1. Music</h2>
 <div class="row"><button class="g" id="pf">Choose music folder</button><span class="dim" id="fi">No folder yet</span></div>
-<div class="row"><label style="margin:0">Seconds per song (0 = whole track)</label><input id="cl" type="number" min="0" style="width:80px;flex:none"></div>
+<div class="row"><label style="margin:0">Start each song this many seconds in</label><input id="sk" type="number" min="0" style="width:80px;flex:none"></div>
+<div class="row"><label style="margin:0">Then play for (seconds, 0 = to the end)</label><input id="cl" type="number" min="0" style="width:80px;flex:none"></div>
 <div class="row"><label style="margin:0"><input type="checkbox" id="au"> Start the next song automatically</label></div>
 </section>
-<section class="p"><h2>2. Prizes, in order</h2><div id="pr"></div><button class="g" id="ap">Add prize</button></section>
+<section class="p"><h2>2. Prizes, in order</h2><div class="dim">Name, the prize amount (shown here and on the stream), and what wins it.</div><div id="pr"></div><button class="g" id="ap">Add prize</button></section>
 <section class="p"><h2>3. Stream and payment</h2>
 <label>PayPal.Me link or name (for the Scan to Pay code on stream)</label>
 <input id="pp" placeholder="paypal.me/yourname">
@@ -122,14 +123,14 @@ async function rpc(fn, args) {
 
 let H = ld('bingo_host');
 if (!H) { H = { code: Array.from({ length: 4 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ'[Math.random() * 23 | 0]).join(''), key: crypto.randomUUID() }; localStorage.setItem('bingo_host', JSON.stringify(H)); }
-const hs = Object.assign({ order: [], pos: -1, cur: null, mode: 'anagram', rev: false, clip: 30, auto: true, ready: false, pp: '', am: '', cu: 'GBP', po: true,
+const hs = Object.assign({ order: [], pos: -1, cur: null, mode: 'anagram', rev: false, clip: 30, auto: true, ready: false, start: 0, pp: '', am: '', cu: 'GBP', po: true,
   prizes: [{ n: 'One line', k: 1 }, { n: 'Two lines', k: 2 }, { n: 'Full house', k: 25 }],
   pu: new URL('bingo-player.html', location.href).href }, ld('bingo_hs') || {});
 const store = () => localStorage.setItem('bingo_hs', JSON.stringify(hs));
 const R = (fn, a) => rpc(fn, Object.assign({ p_room: H.code, p_key: H.key }, a));
 function err(t) { const e = $('er'); e.textContent = t; e.hidden = false; clearTimeout(err.t); err.t = setTimeout(() => e.hidden = true, 5000); }
 
-let files = [], S = null, live = false, want = false, adv = 0;
+let files = [], S = null, live = false, want = false, adv = 0, curStart = 0;
 const audio = new Audio();
 const parse = n => { const k = n.indexOf(' - '); return k > 0 ? { a: n.slice(0, k), t: n.slice(k + 3) } : { a: '', t: n }; };
 
@@ -187,7 +188,11 @@ async function next() {
   const i = hs.order[hs.pos + 1], f = files[i]; if (!f) return err('Folder does not match the game. Choose the same folder.');
   try {
     URL.revokeObjectURL(audio.src); audio.src = URL.createObjectURL(await f.h.getFile());
-    const p = parse(f.name); live = true; await audio.play();
+    const p = parse(f.name); live = true;
+    await new Promise(res => { audio.onloadedmetadata = res; audio.onerror = res; setTimeout(res, 3000); });   // wait until the length is known, then jump in
+    const sk = Math.max(0, +hs.start || 0);
+    curStart = sk > 0 && isFinite(audio.duration) && audio.duration > sk + 1 ? sk : 0;   // a track shorter than the start point plays from the beginning
+    audio.currentTime = curStart; await audio.play();
     await R('bingo_play', { p_idx: i });
     hs.pos++; hs.cur = { idx: i, a: p.a, t: p.t, scr: scramble(p.t), sa: p.a ? scramble(p.a) : '' }; hs.rev = false; store(); poll();
   } catch (e) { audio.pause(); live = false; err(e.message); }
@@ -201,7 +206,7 @@ function sched() {
   adv = setTimeout(() => { if (!want || (S && S.state === 'ended')) return want = false; S && S.state === 'playing' ? next() : sched(); }, 3000);
 }
 audio.addEventListener('ended', () => live && done());
-audio.addEventListener('timeupdate', () => { const c = +$('cl').value; if (live && c > 0 && audio.currentTime >= c) done(); });
+audio.addEventListener('timeupdate', () => { const c = +$('cl').value; if (live && c > 0 && audio.currentTime >= curStart + c) done(); });
 
 async function poll() { try { apply(await R('bingo_host_state')); $('net').hidden = true; } catch (e) { $('net').hidden = false; $('net').textContent = e.message; } }
 async function loop() { await poll(); setTimeout(loop, 1000); }
@@ -234,7 +239,7 @@ function renderClose() {
   else html = left.map((pz, n) => {
     const rows = ps.map(p => ({ n: p.name, a: awayFor(p.card, played, +pz.k) })).filter(r => r.a <= 3);
     const grp = a => { const r = rows.filter(x => x.a === a); return r.length ? `<div class="row"><span class="dim" style="width:105px">${a ? a + ' away' : 'Could call now'}</span>${r.slice(0, 14).map(x => `<span class="chip ${a ? '' : 'rdy'}">${esc(x.n)}</span>`).join('')}${r.length > 14 ? `<span class="dim">+${r.length - 14} more</span>` : ''}</div>` : ''; };
-    return `<div style="margin:10px 0"><b>${esc(pz.n)}</b> <span class="dim">${n ? 'later' : 'playing for now'}</span>${[0, 1, 2, 3].map(grp).join('') || '<div class="dim">Nobody within 3 squares yet</div>'}</div>`;
+    return `<div style="margin:10px 0"><b>${esc(pz.n)}${pAmt(S.prize_idx + n) ? ' &middot; ' + esc(pAmt(S.prize_idx + n)) : ''}</b> <span class="dim">${n ? 'later' : 'playing for now'}</span>${[0, 1, 2, 3].map(grp).join('') || '<div class="dim">Nobody within 3 squares yet</div>'}</div>`;
   }).join('');
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
 }
@@ -252,21 +257,22 @@ function render() {
   $('en').disabled = !S || st === 'ended';
   if (!S) return;
   $('pc').textContent = S.played.length;
-  const pz = S.prizes[S.prize_idx]; $('pz2').textContent = pz ? pz.n + ' (' + (S.prize_idx + 1) + ' of ' + S.prizes.length + ')' : 'All won';
+  const pz = S.prizes[S.prize_idx]; $('pz2').textContent = pz ? pz.n + (pAmt(S.prize_idx) ? ' ' + pAmt(S.prize_idx) : '') + ' (' + (S.prize_idx + 1) + ' of ' + S.prizes.length + ')' : 'All won';
   $('pn').textContent = '(' + S.players.length + ')'; $('tpc').textContent = S.players.length; renderClose();
-  const plh = S.players.map(p => `<span class="chip"><i class="${p.seen < 10 ? 'on' : ''}"></i>${esc(p.name)}<b class="rm" data-rm="${p.id}" data-n="${esc(p.name)}" title="Remove player">&times;</b></span>`).join('') || '<span class="dim">Nobody yet</span>';
+  const plh = S.players.map(p => `<span class="chip"><i class="${p.seen < 10 ? 'on' : ''}"></i>${esc(p.name)}${p.ref ? ` <small class="dim">${esc(p.ref)}</small>` : ''}<b class="rm" data-rm="${p.id}" data-n="${esc(p.name)}" title="Remove player">&times;</b></span>`).join('') || '<span class="dim">Nobody yet</span>';
   if ($('pl').dataset.h !== plh) { $('pl').dataset.h = plh; $('pl').innerHTML = plh; }
   $('ps').innerHTML = S.played.map(i => { const f = files[i]; return `<li>${esc(f ? f.name : 'Song ' + (i + 1))}</li>`; }).reverse().join('');
   const cl = $('claim'), k = S.claim;
   if (k) {
-    const v = k.check, key = 'c' + k.name + S.played.length;
+    const v = k.check, wq = S.queue || [], key = 'c' + k.name + S.played.length + '|' + wq.join();
     if (cl.dataset.k !== key) {
       cl.dataset.k = key;
-      cl.innerHTML = `${balls('BINGO')}<h2>${esc(k.name)} called bingo for ${esc(k.prize)}</h2>
+      cl.innerHTML = `${balls('BINGO')}<h2>${esc(k.name)} called bingo for ${esc(k.prize)}${pAmt(S.prize_idx) ? ' (' + esc(pAmt(S.prize_idx)) + ')' : ''}</h2>
+        <div class="dim">Reference: ${esc(k.ref || 'none given')}</div>${wq.length ? `<div class="v" style="color:var(--gold)">Call 1 of ${wq.length + 1}. Also waiting: ${wq.map(esc).join(', ')}</div><div class="dim">If you award the prize, the others miss out. If this card isn't valid, the next one comes up.</div>` : ''}
         <div class="v ${v.valid ? 'ok' : 'no'}">${v.valid ? 'Looks valid' : 'Not valid'}: ${v.lines} line${v.lines === 1 ? '' : 's'} complete, ${v.need >= 25 ? 'full house needs every square' : v.need + ' needed'}</div>
         <div class="dim">Green: marked and played. Red: marked but not played. Gold outline: played but not marked.</div>
         <div class="g5">${v.cells.map(x => `<div class="${x.m && x.p ? 'ok' : x.m ? 'bad' : x.p ? 'miss' : ''}">${esc(x.t)}</div>`).join('')}</div>
-        <div class="row"><button class="o" id="jy">Valid: award prize</button><button class="r" id="jn">Not valid: carry on</button></div>`;
+        <div class="row"><button class="o" id="jy">Valid: award prize</button><button class="r" id="jn">${wq.length ? 'Not valid: next caller' : 'Not valid: carry on'}</button></div>`;
       $('jy').onclick = act('bingo_judge', { p_ok: true }); $('jn').onclick = act('bingo_judge', { p_ok: false });
     }
   } else { cl.dataset.k = ''; }
@@ -275,22 +281,27 @@ function render() {
   w.hidden = st !== 'won' || !S.win;
   if (!w.hidden) {
     const nx = S.prizes[S.prize_idx];
-    w.innerHTML = `<h2>Congratulations ${esc(S.win.name)}!</h2><div class="v ok">${esc(S.win.prize)}</div>
-      <div class="dim">${nx ? 'Next prize: ' + esc(nx.n) : 'That was the last prize.'}</div><div class="row">${nx ? '<button id="ct">Continue</button>' : '<button id="ct">Carry on playing the remaining songs</button><button class="r" id="fin">Finish game</button>'}</div>`;
+    w.innerHTML = `<h2>Congratulations ${esc(S.win.name)}!</h2><div class="v ok">${esc(S.win.prize)}${pAmt(S.prize_idx - 1) ? ' &middot; ' + esc(pAmt(S.prize_idx - 1)) : ''}</div><div class="dim">Reference: ${esc(S.win_ref || 'none given')}</div>
+      <div class="dim">${nx ? 'Next prize: ' + esc(nx.n) + (pAmt(S.prize_idx) ? ' (' + esc(pAmt(S.prize_idx)) + ')' : '') : 'That was the last prize.'}</div><div class="row">${nx ? '<button id="ct">Continue</button>' : '<button id="ct">Carry on playing the remaining songs</button><button class="r" id="fin">Finish game</button>'}</div>`;
     $('ct').onclick = act('bingo_set_state', { p_state: nx ? 'playing' : 'free' });
     if (!nx) $('fin').onclick = act('bingo_set_state', { p_state: 'ended' });
   }
 }
 function renderPrizes() {
-  $('pr').innerHTML = hs.prizes.map((p, i) => `<div class="row"><input type="text" value="${esc(p.n)}" data-pn="${i}"><select data-pk="${i}" style="width:130px">${[1, 2, 3, 4, 5, 25].map(k => `<option value="${k}"${+p.k === k ? ' selected' : ''}>${k === 25 ? 'Full house' : k + (k > 1 ? ' lines' : ' line')}</option>`).join('')}</select><button class="g" data-px="${i}">x</button></div>`).join('');
+  $('pr').innerHTML = hs.prizes.map((p, i) => `<div class="row"><input type="text" value="${esc(p.n)}" data-pn="${i}"><input type="text" value="${esc(p.a || '')}" data-pa="${i}" placeholder="Prize" style="width:104px;flex:none"><select data-pk="${i}" style="width:130px">${[1, 2, 3, 4, 5, 25].map(k => `<option value="${k}"${+p.k === k ? ' selected' : ''}>${k === 25 ? 'Full house' : k + (k > 1 ? ' lines' : ' line')}</option>`).join('')}</select><button class="g" data-px="${i}">x</button></div>`).join('');
 }
-$('pr').addEventListener('input', e => { if (e.target.dataset.pn) { hs.prizes[e.target.dataset.pn].n = e.target.value; store(); } });
+$('pr').addEventListener('input', e => {
+  const d = e.target.dataset;
+  if (d.pn) hs.prizes[d.pn].n = e.target.value; else if (d.pa) hs.prizes[d.pa].a = e.target.value; else return;
+  store(); render(); sync();
+});
 $('pr').addEventListener('change', e => { if (e.target.dataset.pk) { hs.prizes[e.target.dataset.pk].k = +e.target.value; store(); } });
 $('pr').addEventListener('click', e => { if (e.target.dataset.px) { hs.prizes.splice(e.target.dataset.px, 1); store(); renderPrizes(); } });
 $('ap').onclick = () => { hs.prizes.push({ n: 'Prize ' + (hs.prizes.length + 1), k: 1 }); store(); renderPrizes(); };
 
 const WID = crypto.randomUUID(); localStorage.setItem('bingo_owner', WID);   // newest host window feeds the overlay
 const SYM = { GBP: '\u00a3', EUR: '\u20ac', USD: '$' };
+const pAmt = i => { const a = String((hs.prizes[i] || {}).a || '').trim(); return a ? (/^\d+(\.\d+)?$/.test(a) ? SYM[hs.cu] + a : a) : ''; };   // '20' shows as the currency amount, anything else as typed
 function payInfo() {   // builds the PayPal.Me link from the setup fields
   const raw = (hs.pp || '').trim(); if (!raw) return { url: '', label: '', msg: '' };
   if (raw.includes('@')) return { url: '', label: '', msg: 'That is an email. A pay link needs your PayPal.Me name, e.g. paypal.me/yourname' };
@@ -308,7 +319,7 @@ function sync() {   // everything the OBS overlay needs, via localStorage
   const pz = S && S.prizes[S.prize_idx];
   try {
     localStorage.setItem('bingo_obs', JSON.stringify({ room: H.code, state: S ? S.state : 'lobby', mode: hs.mode, reveal: hs.rev,
-      cur: c && { a: c.a, t: c.t, scr: c.scr, sa: c.sa || '' }, prev, prize: pz ? pz.n : '', pnum: S ? S.prize_idx + 1 : 1, ptotal: S ? S.prizes.length : 0,
+      cur: c && { a: c.a, t: c.t, scr: c.scr, sa: c.sa || '' }, prev, prize: pz ? pz.n : '', amt: pAmt(S.prize_idx), winAmt: pAmt(S.prize_idx - 1), pnum: S ? S.prize_idx + 1 : 1, ptotal: S ? S.prizes.length : 0,
       players: S ? S.players.length : 0, played: pl.length, total: hs.order.length || files.length, join: hs.pu + '?r=' + H.code, win: S && S.state === 'won' ? S.win : null,
       claim: S && S.claim ? { name: S.claim.name } : null, winners: S ? S.winners : [], pay: pi.url && hs.po ? { url: pi.url, label: pi.label } : null, ts: Date.now() }));
   } catch (e) {}
@@ -325,6 +336,7 @@ $('rv').onclick = () => { hs.rev = true; store(); render(); sync(); };
 $('en').onclick = () => confirm('End the game for everyone?') && act('bingo_set_state', { p_state: 'ended' })();
 $('md').onchange = e => { hs.mode = e.target.value; store(); render(); sync(); };
 $('cl').onchange = e => { hs.clip = +e.target.value || 0; store(); };
+$('sk').onchange = e => { hs.start = Math.max(0, +e.target.value || 0); store(); };
 $('au').onchange = e => { hs.auto = e.target.checked; store(); };
 $('pu').onchange = e => { hs.pu = e.target.value.trim(); store(); drawQR(); sync(); };
 $('nr').onclick = async () => {
@@ -336,7 +348,7 @@ $('nr').onclick = async () => {
 };
 
 $('ob').onclick = () => window.open(new URL('bingo-obs.html', location.href).href, 'bingo_obs', 'width=1280,height=720');
-$('rc').textContent = H.code; $('md').value = hs.mode; $('cl').value = hs.clip; $('au').checked = hs.auto; $('pu').value = hs.pu;
+$('rc').textContent = H.code; $('md').value = hs.mode; $('cl').value = hs.clip; $('sk').value = hs.start; $('au').checked = hs.auto; $('pu').value = hs.pu;
 $('pp').value = hs.pp; $('am').value = hs.am; $('cu').value = hs.cu; $('po').checked = hs.po;
 const payUpd = () => { hs.pp = $('pp').value; hs.am = $('am').value; hs.cu = $('cu').value; hs.po = $('po').checked; store(); const p = payInfo(); $('pe').textContent = p.url ? 'Pay link: ' + p.url : p.msg; sync(); };
 ['pp', 'am', 'cu', 'po'].forEach(id => $(id).addEventListener('input', payUpd));

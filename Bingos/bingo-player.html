@@ -56,6 +56,7 @@ header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#000
 #net{position:fixed;left:0;right:0;top:0;background:var(--red);color:#fff;text-align:center;font-weight:900;font-size:13px;padding:4px;display:none;z-index:9}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;border-radius:999px;font-weight:800;display:none;z-index:9;max-width:90%;text-align:center;border:2px solid var(--y)}
 @media (prefers-reduced-motion:reduce){.logo,.bb span,.cf i{animation:none}}
+.opt{text-transform:none;letter-spacing:0;color:var(--soft);font-weight:700}
 </style>
 </head>
 <body>
@@ -100,12 +101,13 @@ function joinView(msg, room) {
   app.innerHTML = `<div class="wrap"><img class="logo" src="${LOGO}" alt="RumHam"><h1>Music Bingo</h1>
     <label for="rc">Room code</label><input id="rc" maxlength="8" autocapitalize="characters" autocomplete="off" value="${esc(room || wantRoom)}">
     <label for="tn">Your name</label><input id="tn" maxlength="24" autocomplete="off">
+    <label for="rf">Reference or email <span class="opt">(so we can match your PayPal payment)</span></label><input id="rf" maxlength="80" autocomplete="email" placeholder="Same one you paid with">
     <button class="big" id="jb">JOIN</button><p class="err" id="je">${esc(msg || '')}</p></div>`;
   const go = async () => {
     const room = $('rc').value.trim().toUpperCase(), name = $('tn').value.trim();
     $('je').textContent = ''; $('jb').disabled = true;
     try {
-      const r = await rpc('bingo_join', { p_room: room, p_name: name });
+      const r = await rpc('bingo_join', { p_room: room, p_name: name, p_ref: $('rf').value.trim() });
       me = { room, id: r.id, secret: r.secret, name: r.name }; saveMe(); sig = ''; poll();
     } catch (e) { $('je').textContent = e.message; $('jb').disabled = false; }
   };
@@ -138,12 +140,12 @@ const cell = (t, i) => {
 function overlay(s, m) {
   if (s.state === 'won' && s.win) {
     const mine = s.win.name === m.name;
-    return `<div class="over win">${confetti()}<img class="logo ovl" src="${LOGO}" alt=""><div class="big3">${mine ? 'Congratulations!' : esc(s.win.name) + ' got it!'}</div>
-      <div class="cap">${mine ? 'You won ' : 'Winner of '}${esc(s.win.prize)}</div>
+    return `<div class="over win">${confetti()}<img class="logo ovl" src="${LOGO}" alt=""><div class="big3">${mine ? 'Congratulations!' : s.late ? 'So close!' : esc(s.win.name) + ' got it!'}</div>
+      <div class="cap">${mine ? 'You won ' : s.late ? esc(s.win.name) + ' called first and won ' : 'Winner of '}${esc(s.win.prize)}</div>
       <div class="sub">${s.prize ? 'Next up: ' + esc(s.prize) + '. The game continues shortly.' : 'That was the last prize.'}</div></div>`;
   }
-  if (s.caller) return `<div class="over">${balls('BINGO')}<div class="big3">${s.mine_call ? 'You called it!' : esc(s.caller) + ' called bingo'}</div>
-      <div class="cap">Music stopped</div><div class="sub">${s.mine_call ? 'The host is checking your card' : 'The host is checking their card'}</div></div>`;
+  if (s.caller) return `<div class="over">${balls('BINGO')}<div class="big3">${s.mine_call ? 'You called it!' : s.queued ? "You're in the queue" : esc(s.caller) + ' called bingo'}</div>
+      <div class="cap">Music stopped</div><div class="sub">${s.mine_call ? 'The host is checking your card' : s.queued ? 'The host is checking ' + esc(s.caller) + ' first' : 'The host is checking their card'}</div></div>`;
   return '';
 }
 function draw(s) {
@@ -156,9 +158,9 @@ function draw(s) {
   coolEnd = Date.now() + (+m.cool || 0);
   const card = m.card, sg = card ? card.join('|') : '';
   if (sg !== msig) { msig = sg; loadMarks(sg); }
-  if (wasMine && !s.caller && s.state !== 'won') toast('Not a valid bingo. You can call again shortly.');
+  if (wasMine && !s.mine_call && s.state !== 'won') toast('Not a valid bingo. You can call again shortly.');
   wasMine = !!s.mine_call;
-  const key = [s.state, sg, [...marks].join(), s.prize, s.caller, s.mine_call, JSON.stringify(s.win), JSON.stringify(s.winners)].join('~');
+  const key = [s.state, sg, [...marks].join(), s.prize, s.caller, s.mine_call, s.queued, s.late, JSON.stringify(s.win), JSON.stringify(s.winners)].join('~');
   if (key === sig) { btnState(); return; } sig = key;
 
   if (s.state === 'ended') {

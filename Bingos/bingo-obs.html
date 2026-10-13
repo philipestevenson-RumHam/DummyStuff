@@ -32,7 +32,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050507}
 #ul{list-style:none}
 @keyframes sc{to{transform:translateY(-50%)}}
 #ul li{display:flex;gap:18px;align-items:center;height:60px;border-bottom:1px solid #26262f;padding:0 6px}
-#ul li b{flex:none;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:400 24px 'Lilita One',Arial,sans-serif;color:#fff;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.7) 0 10%,transparent 11%),var(--bc);border:3px solid #000;text-shadow:0 2px 0 rgba(0,0,0,.45)}
+#ul li b{flex:none;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:400 24px 'Lilita One',Arial,sans-serif;color:#111;background:radial-gradient(circle at 32% 28%,#fff 0 55%,#d9d2b8 100%);border:3px solid #000;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
 #ul li span{display:flex;gap:30px;align-items:baseline;line-height:1;min-width:0}#ul li em{font-style:normal;font-weight:700;font-size:40px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
 #ul li small{font-size:36px;color:#5fe0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
 #ul li.new{animation:nw 2.5s ease-out}@keyframes nw{from{background:rgba(245,197,66,.35);transform:translateX(-30px);opacity:0}30%{opacity:1;transform:none}}
@@ -69,7 +69,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050507}
   <div id="bot">
     <div id="qr"></div>
     <div><div class="k">SCAN TO PLAY</div><div class="v" id="rm"></div></div>
-    <div id="bz"><div class="k">PLAYING FOR</div><div class="v" id="pz" style="font-size:80px"></div><div class="k" id="pn"></div></div>
+    <div id="bz"><div class="k" id="pn"></div><div class="v" id="pz" style="font-size:66px"></div><div class="v" id="pm" style="font-size:52px;color:#2ecc71"></div></div>
     <div id="bp"><div class="v" id="pl"></div><div class="k">PLAYERS</div></div>
     <div id="pay"><div><div class="k">SCAN TO PAY</div><div class="v" id="pa"></div></div><div id="qp"></div></div>
   </div>
@@ -128,7 +128,7 @@ function drawList() {
   const grew = k.n != null && D.prev.length > k.n; k.list = key; k.n = D.prev.length;
   const items = D.prev.slice().reverse(), lw = $('lw');
   if (!items.length) { lw.innerHTML = '<div class="none">Songs appear here once they have been played</div>'; return; }
-  lw.innerHTML = '<ul id="ul">' + items.map((p, i) => `<li class="${i === 0 && grew ? 'new' : ''}" style="--bc:${BC[(D.prev.length - i - 1) % 5]}"><b>${D.prev.length - i}</b><span><em>${esc(p.t)}</em>${p.a ? `<small>${esc(p.a)}</small>` : ''}</span></li>`).join('') + '</ul>';
+  lw.innerHTML = '<ul id="ul">' + items.map((p, i) => `<li class="${i === 0 && grew ? 'new' : ''}"><b>${D.prev.length - i}</b><span><em>${esc(p.t)}</em>${p.a ? `<small>${esc(p.a)}</small>` : ''}</span></li>`).join('') + '</ul>';
   const ul = $('ul');
   if (ul.scrollHeight > lw.clientHeight) {   // too many to fit: loop slowly upwards
     ul.innerHTML += ul.innerHTML.replace(/ class="new"/g, '');
@@ -136,20 +136,21 @@ function drawList() {
   }
 }
 function drawBot() {
-  const key = [D.room, D.join, D.prize, D.pnum, D.ptotal, D.state, D.players, D.pay && D.pay.url, D.pay && D.pay.label].join('|');
+  const key = [D.room, D.join, D.prize, D.amt, D.pnum, D.ptotal, D.state, D.players, D.pay && D.pay.url, D.pay && D.pay.label].join('|');
   if (key === k.bot) return;
   if (D.join !== k.join) { k.join = D.join; $('qr').innerHTML = ''; if (window.QRCode) new QRCode($('qr'), { text: D.join, width: 140, height: 140 }); }
   const py = D.pay; $('pay').style.display = py ? 'flex' : 'none';
   if (py) { $('pa').textContent = py.label; if (py.url !== k.payUrl) { k.payUrl = py.url; $('qp').innerHTML = ''; if (window.QRCode) new QRCode($('qp'), { text: py.url, width: 140, height: 140 }); } }
   k.bot = key; $('rm').textContent = D.room;
   $('pz').textContent = (D.prize || (D.ptotal && D.state !== 'lobby' ? 'All prizes won' : '')).toUpperCase();
-  $('pn').textContent = D.prize ? 'PRIZE ' + D.pnum + ' OF ' + D.ptotal : (D.ptotal && D.state !== 'lobby' && D.state !== 'ended' ? 'PLAYING ON FOR FUN' : '');
+  $('pm').textContent = D.prize ? D.amt || '' : '';
+  $('pn').textContent = D.prize ? 'PLAYING FOR  \u00b7  PRIZE ' + D.pnum + ' OF ' + D.ptotal : (D.ptotal && D.state !== 'lobby' && D.state !== 'ended' ? 'PLAYING ON FOR FUN' : '');
   $('pl').textContent = D.players;
 }
 function drawOv() {
   const ov = $('ov'); let kind = '', html = '';
   if (D.state === 'ended') { kind = 'e'; html = `<img class="ovlogo" src="${LOGO}" alt=""><h1 class="m">Thanks for playing</h1>${D.winners.length ? `<ol>${D.winners.map(w => `<li>${esc(w.prize)}: <em>${esc(w.name)}</em></li>`).join('')}</ol>` : ''}`; }
-  else if (D.state === 'won' && D.win) { kind = 'w'; html = `<div class="cf">${Array.from({ length: 70 }, () => `<i style="left:${Math.random() * 100}%;background:hsl(${Math.random() * 360} 85% 60%);animation-duration:${3 + Math.random() * 3}s;animation-delay:${-Math.random() * 5}s"></i>`).join('')}</div><img class="ovlogo" src="${LOGO}" alt=""><h3>Congratulations</h3><h1 class="m pop">${esc(D.win.name)}</h1><h3>${esc(D.win.prize)}</h3><p>${D.prize ? 'The game carries on shortly' : 'That was the final prize'}</p>`; }
+  else if (D.state === 'won' && D.win) { kind = 'w'; html = `<div class="cf">${Array.from({ length: 70 }, () => `<i style="left:${Math.random() * 100}%;background:hsl(${Math.random() * 360} 85% 60%);animation-duration:${3 + Math.random() * 3}s;animation-delay:${-Math.random() * 5}s"></i>`).join('')}</div><img class="ovlogo" src="${LOGO}" alt=""><h3>Congratulations</h3><h1 class="m pop">${esc(D.win.name)}</h1><h3>${esc(D.win.prize)}${D.winAmt ? ' \u00b7 ' + esc(D.winAmt) : ''}</h3><p>${D.prize ? 'The game carries on shortly' : 'That was the final prize'}</p>`; }
   else if (D.claim) { kind = 'c'; html = `${balls('BINGO')}<h3>${esc(D.claim.name)} has called</h3><p>Music paused while the host checks the card</p>`; }
   const key = kind + JSON.stringify(D.win) + (D.claim ? D.claim.name : '') + D.winners.length;
   if (key === k.ov) return; k.ov = key;
