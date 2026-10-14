@@ -59,6 +59,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050507}
 .ovlogo{height:230px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.7))}
 .bb{display:flex;gap:26px;justify-content:center}.bb span{width:190px;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font:400 120px 'Lilita One',Arial,sans-serif;color:#fff;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.75) 0 10%,transparent 11%),var(--bc);border:6px solid #000;box-shadow:0 8px 0 #000;text-shadow:0 2px 0 rgba(0,0,0,.35);animation:hop 1s ease-in-out infinite}
 @keyframes hop{50%{transform:translateY(-30px)}}
+#ov.split{flex-direction:row;gap:70px;padding:0 90px}
+.side{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;width:940px}
+#ov.split h1.m{font-size:104px}#ov.split .ovlogo{height:170px}#ov.split .bb{gap:16px}#ov.split .bb span{width:150px;height:150px;font-size:96px}
+#ov h1.bad{background:linear-gradient(180deg,#ff9a9a,#e63946);-webkit-background-clip:text;color:transparent}#ov h3.okc{color:#2ecc71;font-size:68px}
+.ocard{display:grid;grid-template-columns:repeat(5,134px);gap:8px;flex:none}
+.oc{width:134px;height:134px;padding:6px;border-radius:12px;background:#fff6d6;color:#111;border:4px solid #000;box-shadow:0 5px 0 #000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.05;overflow:hidden}
+.oc b{font:700 23px 'Barlow Condensed','Arial Narrow',sans-serif;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.oc i{font:600 17px 'Barlow Condensed','Arial Narrow',sans-serif;opacity:.65;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.oc.m{background:#ffd21a}.oc.ok{background:#35c46b;color:#04210f}.oc.bad{background:#ff5d5d;color:#2a0505}
 </style>
 </head>
 <body>
@@ -147,15 +156,37 @@ function drawBot() {
   $('pn').textContent = D.prize ? 'PLAYING FOR  \u00b7  PRIZE ' + D.pnum + ' OF ' + D.ptotal : (D.ptotal && D.state !== 'lobby' && D.state !== 'ended' ? 'PLAYING ON FOR FUN' : '');
   $('pl').textContent = D.players;
 }
+function cardHtml(cells, judged) {   // judged: green = marked and played, red = marked but not played. Otherwise marked squares are simply highlighted.
+  return '<div class="ocard">' + cells.map(c => {
+    const k = String(c.t).indexOf(' - '), a = k > 0 ? c.t.slice(0, k) : '', n = k > 0 ? c.t.slice(k + 3) : c.t;
+    const cls = judged ? (c.m && c.p ? 'ok' : c.m ? 'bad' : '') : (c.m ? 'm' : '');
+    return `<div class="oc ${cls}"><b>${esc(n)}</b>${a ? `<i>${esc(a)}</i>` : ''}</div>`;
+  }).join('') + '</div>';
+}
 function drawOv() {
-  const ov = $('ov'); let kind = '', html = '';
+  const ov = $('ov'), v = D.verdict, bad = v && !v.ok && Date.now() - v.at < 6000; let kind = '', html = '', card = false;
+  const confetti = `<div class="cf">${Array.from({ length: 70 }, () => `<i style="left:${Math.random() * 100}%;background:hsl(${Math.random() * 360} 85% 60%);animation-duration:${3 + Math.random() * 3}s;animation-delay:${-Math.random() * 5}s"></i>`).join('')}</div>`;
   if (D.state === 'ended') { kind = 'e'; html = `<img class="ovlogo" src="${LOGO}" alt=""><h1 class="m">Thanks for playing</h1>${D.winners.length ? `<ol>${D.winners.map(w => `<li>${esc(w.prize)}: <em>${esc(w.name)}</em></li>`).join('')}</ol>` : ''}`; }
-  else if (D.state === 'won' && D.win) { kind = 'w'; html = `<div class="cf">${Array.from({ length: 70 }, () => `<i style="left:${Math.random() * 100}%;background:hsl(${Math.random() * 360} 85% 60%);animation-duration:${3 + Math.random() * 3}s;animation-delay:${-Math.random() * 5}s"></i>`).join('')}</div><img class="ovlogo" src="${LOGO}" alt=""><h3>Congratulations</h3><h1 class="m pop">${esc(D.win.name)}</h1><h3>${esc(D.win.prize)}${D.winAmt ? ' \u00b7 ' + esc(D.winAmt) : ''}</h3><p>${D.prize ? 'The game carries on shortly' : 'That was the final prize'}</p>`; }
-  else if (D.claim) { kind = 'c'; html = `${balls('BINGO')}<h3>${esc(D.claim.name)} has called</h3><p>Music paused while the host checks the card</p>`; }
-  const key = kind + JSON.stringify(D.win) + (D.claim ? D.claim.name : '') + D.winners.length;
+  else if (bad) {   // the host rejected this call: show the card with the squares that weren't played in red
+    kind = 'x'; card = true;
+    html = `<div class="side"><h1 class="m bad pop">Not a valid bingo</h1><h3>${esc(v.name)}</h3><p>${v.lines} line${v.lines === 1 ? '' : 's'} complete, ${v.need >= 25 ? 'a full house needs every square' : v.need + ' needed'}</p><p>The game carries on</p></div>${cardHtml(v.cells, true)}`;
+  } else if (D.state === 'won' && D.win) {
+    kind = 'w'; const wv = v && v.ok && v.name === D.win.name ? v : null; card = !!wv;
+    const left = `<img class="ovlogo" src="${LOGO}" alt=""><h3 class="okc">Valid bingo</h3><h3>Congratulations</h3><h1 class="m pop">${esc(D.win.name)}</h1><h3>${esc(D.win.prize)}${D.winAmt ? ' \u00b7 ' + esc(D.winAmt) : ''}</h3><p>${D.prize ? 'The game carries on shortly' : 'That was the final prize'}</p>`;
+    html = confetti + (card ? `<div class="side">${left}</div>${cardHtml(wv.cells, true)}` : left);
+  } else if (D.claim) {   // being checked: show the card with the squares they've marked, without giving the verdict away
+    kind = 'c'; card = !!(D.claim.cells && D.claim.cells.length);
+    const left = `${balls('BINGO')}<h3>${esc(D.claim.name)} has called</h3><p>Music paused while the host checks the card${D.waiting ? ' \u00b7 ' + D.waiting + ' more waiting' : ''}</p>`;
+    html = card ? `<div class="side">${left}</div>${cardHtml(D.claim.cells, false)}` : left;
+  }
+  const key = kind + JSON.stringify(D.win) + (D.claim ? D.claim.name : '') + D.winners.length + (v ? v.at : '') + (D.waiting || '');
   if (key === k.ov) return; k.ov = key;
-  if (!first && kind !== k.kind) { if (kind === 'w') tone([[523, .18], [659, .18], [784, .18], [1047, .7, .25]]); if (kind === 'c') tone([[440, .15], [330, .35]]); }
-  k.kind = kind; ov.className = kind === 'w' ? 'win' : ''; ov.innerHTML = html; ov.style.display = kind ? 'flex' : 'none';
+  if (!first && kind !== k.kind) {
+    if (kind === 'w') tone([[523, .18], [659, .18], [784, .18], [1047, .7, .25]]);
+    if (kind === 'c') tone([[440, .15], [330, .35]]);
+    if (kind === 'x') tone([[220, .22], [165, .5]]);
+  }
+  k.kind = kind; ov.className = (kind === 'w' ? 'win' : '') + (card ? ' split' : ''); ov.innerHTML = html; ov.style.display = kind ? 'flex' : 'none';
 }
 function render() {
   if (!D) { $('ov').className = ''; $('ov').innerHTML = '<h3>Waiting for the host page</h3><p>Open bingo-host.html in this browser</p>'; $('ov').style.display = 'flex'; k = {}; return; }

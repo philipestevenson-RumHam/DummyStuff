@@ -130,7 +130,7 @@ const store = () => localStorage.setItem('bingo_hs', JSON.stringify(hs));
 const R = (fn, a) => rpc(fn, Object.assign({ p_room: H.code, p_key: H.key }, a));
 function err(t) { const e = $('er'); e.textContent = t; e.hidden = false; clearTimeout(err.t); err.t = setTimeout(() => e.hidden = true, 5000); }
 
-let files = [], S = null, live = false, want = false, adv = 0, curStart = 0;
+let files = [], S = null, live = false, want = false, adv = 0, curStart = 0, verdict = null;
 const audio = new Audio();
 const parse = n => { const k = n.indexOf(' - '); return k > 0 ? { a: n.slice(0, k), t: n.slice(k + 3) } : { a: '', t: n }; };
 
@@ -178,7 +178,7 @@ async function setup() {
   if (S && (S.played.length || S.players.length) && !confirm('Start a fresh game? Every player is removed and has to join again to get a new card.')) return;
   try {
     await R('bingo_setup', { p_songs: files.map(f => f.name), p_prizes: hs.prizes.map(p => ({ n: p.n || 'Prize', k: +p.k })) });
-    audio.pause(); live = false; want = false; Object.assign(hs, { order: shuffle(files.map((_, i) => i)), pos: -1, cur: null, rev: false, ready: true }); store(); showTab('play'); poll();
+    audio.pause(); live = false; want = false; verdict = null; Object.assign(hs, { order: shuffle(files.map((_, i) => i)), pos: -1, cur: null, rev: false, ready: true }); store(); showTab('play'); poll();
   } catch (e) { err(e.message); }
 }
 async function next() {
@@ -273,7 +273,12 @@ function render() {
         <div class="dim">Green: marked and played. Red: marked but not played. Gold outline: played but not marked.</div>
         <div class="g5">${v.cells.map(x => `<div class="${x.m && x.p ? 'ok' : x.m ? 'bad' : x.p ? 'miss' : ''}">${esc(x.t)}</div>`).join('')}</div>
         <div class="row"><button class="o" id="jy">Valid: award prize</button><button class="r" id="jn">${wq.length ? 'Not valid: next caller' : 'Not valid: carry on'}</button></div>`;
-      $('jy').onclick = act('bingo_judge', { p_ok: true }); $('jn').onclick = act('bingo_judge', { p_ok: false });
+      const judge = ok => async () => {   // record what the stream should show (the card and the verdict), then tell the server
+        const c = S && S.claim; if (!c) return;
+        const v = { ok, name: c.name, cells: c.check.cells, lines: c.check.lines, need: c.check.need, at: Date.now() };
+        try { await R('bingo_judge', { p_ok: ok }); verdict = v; sync(); poll(); } catch (e) { err(e.message); }
+      };
+      $('jy').onclick = judge(true); $('jn').onclick = judge(false);
     }
   } else { cl.dataset.k = ''; }
   cl.hidden = !k;
@@ -314,6 +319,7 @@ function sync() {   // everything the OBS overlay needs, via localStorage
   const own = localStorage.getItem('bingo_owner') === WID; $('ow').hidden = own;
   if (!S || !own) return;
   const pi = payInfo();
+  const vd = verdict && ((verdict.ok && (S.state === 'won' || Date.now() - verdict.at < 3000)) || (!verdict.ok && Date.now() - verdict.at < 8000)) ? verdict : null;
   const c = hs.cur, pl = S ? S.played : [];
   const prev = (c && pl[pl.length - 1] === c.idx ? pl.slice(0, -1) : pl).map(i => files[i] ? parse(files[i].name) : { a: '', t: 'Song ' + (i + 1) });
   const pz = S && S.prizes[S.prize_idx];
@@ -321,7 +327,7 @@ function sync() {   // everything the OBS overlay needs, via localStorage
     localStorage.setItem('bingo_obs', JSON.stringify({ room: H.code, state: S ? S.state : 'lobby', mode: hs.mode, reveal: hs.rev,
       cur: c && { a: c.a, t: c.t, scr: c.scr, sa: c.sa || '' }, prev, prize: pz ? pz.n : '', amt: pAmt(S.prize_idx), winAmt: pAmt(S.prize_idx - 1), pnum: S ? S.prize_idx + 1 : 1, ptotal: S ? S.prizes.length : 0,
       players: S ? S.players.length : 0, played: pl.length, total: hs.order.length || files.length, join: hs.pu + '?r=' + H.code, win: S && S.state === 'won' ? S.win : null,
-      claim: S && S.claim ? { name: S.claim.name } : null, winners: S ? S.winners : [], pay: pi.url && hs.po ? { url: pi.url, label: pi.label } : null, ts: Date.now() }));
+      claim: S && S.claim ? { name: S.claim.name, cells: S.claim.check.cells.map(c => ({ t: c.t, m: c.m })) } : null, waiting: (S.queue || []).length, verdict: vd, winners: S ? S.winners : [], pay: pi.url && hs.po ? { url: pi.url, label: pi.label } : null, ts: Date.now() }));
   } catch (e) {}
 }
 function drawQR() { const q = $('qr'); q.innerHTML = ''; if (window.QRCode) new QRCode(q, { text: hs.pu + '?r=' + H.code, width: 180, height: 180 }); }
