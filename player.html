@@ -9,7 +9,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;font-family:Arial,Helvetica,sans-serif;color:#fff;background:#07142e;overscroll-behavior:none}
 body{background:radial-gradient(circle at 50% -10%,#1b3f86 0,#0b1f4d 45%,#060d22 100%);min-height:100%}
-#app{min-height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .wrap{width:100%;max-width:480px;margin:0 auto;padding:22px 18px;display:flex;flex-direction:column;gap:10px}
 h1{margin:10px 0 6px;color:var(--yellow);text-transform:uppercase;font-size:28px;letter-spacing:.03em;text-align:center}
 label{font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan);margin-top:6px}
@@ -23,7 +23,12 @@ button{font:inherit;cursor:pointer;touch-action:manipulation;border:0}
 header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;background:rgba(0,0,0,.35);border-bottom:2px solid rgba(255,255,255,.12)}
 .tn{font-weight:900;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tot{font-weight:900;color:var(--yellow);white-space:nowrap}
-.main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px;width:100%;max-width:520px;margin:0 auto;text-align:center}
+.main{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;gap:14px;width:100%;max-width:520px;margin:0 auto;text-align:center}
+.main>:first-child{margin-top:auto}.main>:last-child{margin-bottom:auto}
+.main.qlayout>:first-child{margin-top:0}.main.qlayout>:last-child{margin-bottom:0}
+.qzone{flex:1 1 0;min-height:0;width:100%;overflow-y:auto;display:flex;text-align:center}
+.qzone>*{margin:auto;width:100%}
+.izone{flex:none;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
 .prompt{font-weight:900;font-size:18px;color:var(--soft)}
 .pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:420px}
 .k{aspect-ratio:1;border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(22px,7vw,32px);box-shadow:0 4px 0 #0a2250}.k2{font-size:clamp(14px,4.4vw,20px)}
@@ -39,6 +44,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .bonus{font-weight:900;color:var(--yellow);font-size:22px}
 .fast{list-style:none;margin:0;padding:0;font-weight:800;color:var(--soft)}.fast li{padding:2px 0}.fast b{color:#fff}
 .foot{padding:10px 16px;text-align:center}
+@media(max-height:700px){.main{padding:8px 14px;gap:8px}.main.qlayout .izone{gap:8px}.opts{gap:8px}.ob{min-height:46px;padding:6px 14px;font-size:clamp(16px,4.6vw,20px)}.tm{font-size:24px;padding:4px 16px}.prompt{font-size:15px}.evil{padding:4px 10px;font-size:13px}.qc{font-size:15px;padding:8px 10px}.foot{padding:4px 16px}header{padding:8px 14px}.lock{width:min(32vw,120px)}}
 .foot button{background:none;color:var(--soft);text-decoration:underline;font-size:13px;padding:8px}
 .qc{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px 14px;font-weight:800;font-size:clamp(16px,4.6vw,22px);line-height:1.25;overflow-wrap:anywhere}
 .opts{display:flex;flex-direction:column;gap:10px;width:100%;max-width:440px}
@@ -66,7 +72,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .nk.ns{background:linear-gradient(180deg,#ffe95a,#d4b400);color:var(--ink);box-shadow:0 4px 0 #8a7500;font-size:clamp(13px,3.8vw,17px)}
 .lock.num{border-radius:24px;width:auto;min-width:min(40vw,170px);aspect-ratio:auto;padding:14px 28px;font-size:clamp(34px,12vw,60px)}
 .tm{font:900 clamp(26px,8vw,38px)/1 Arial,sans-serif;min-width:3.4em;padding:6px 18px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff}
-.tm:empty{display:none}.tm.warn{color:var(--yellow)}.tm.crit{background:var(--red);color:#fff}
+.tm{min-height:calc(1em + 12px)}.tm:empty{display:block;visibility:hidden}.tm.warn{color:var(--yellow)}.tm.crit{background:var(--red);color:#fff}
 #net{position:fixed;left:0;right:0;top:0;background:var(--red);color:#fff;text-align:center;font-weight:900;font-size:13px;padding:4px;display:none;z-index:9}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;border-radius:999px;font-weight:800;display:none;z-index:9}
 </style>
@@ -196,18 +202,21 @@ function draw(s) {
   if (s.qkey !== msQ) { msQ = s.qkey; msPend = new Set(); }
   if (msFly === 0) msPend = new Set();
   const picked = new Set(String(m.letter || '').split(',').filter(x => x !== '').concat([...msPend]));
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null)].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null), s.kphidden].join('|');
   if (key === sig) return; sig = key;
 
-  const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : (s.qhidden ? '<div class="qc hold">Get ready&hellip; the question is coming up</div>' : '');
+  const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : (s.qhidden ? '<div class="qc hold">' + (s.kphidden ? 'Get ready&hellip;' : 'Get ready&hellip; the question is coming up') + '</div>' : '');
   const lock = l => `<div class="lock ${isNum ? 'num' : isMulti ? 'opt' : l === 'X' ? 'xy' : ''}">${esc(isNum ? l : isMulti ? (opts[+l] || '?') : showL(l))}</div>`;
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
-  let body;
+  let body, lay = '';
   if (s.state === 'open') {
-    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}${qc}` + (isSort ? sortpad(opts, seq, !!m.letter) + (m.letter ? `<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : ''}</div>` : '') : isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
+    lay = ' qlayout';
+    const ins = s.kphidden ? '' : (isSort ? sortpad(opts, seq, !!m.letter) + (m.letter ? `<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : ''}</div>` : '') : isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}<div class="qzone">${qc}</div><div class="izone">${ins}</div>`;
   } else if (s.state === 'closed') {
-    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}${qc}` + (isSort ? (m.letter ? sortpad(opts, seq, true) + '<div class="sub">Locked in. Waiting for the answer&hellip;</div>' : '<div class="cap">Time\'s up</div><div class="sub">No answer from you</div>') : isSel ? selpad(opts, picked, true) + '<div class="sub">Waiting for the answer&hellip;</div>' : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
-             : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`);
+    lay = ' qlayout';
+    body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}<div class="qzone">${qc}</div><div class="izone">` + (isSort ? (m.letter ? sortpad(opts, seq, true) + '<div class="sub">Locked in. Waiting for the answer&hellip;</div>' : '<div class="cap">Time\'s up</div><div class="sub">No answer from you</div>') : isSel ? selpad(opts, picked, true) + '<div class="sub">Waiting for the answer&hellip;</div>' : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">Waiting for the answer&hellip;</div>`
+             : `<div class="cap">Time's up</div><div class="sub">No answer from you</div>`) + '</div>';
   } else if (s.state === 'revealed') {
     const letters = (s.correct || []).map(isNum ? (x => x) : isSort ? (x => String(x).split(',').map(i => opts[+i] || '').join(' \u2192 ')) : isSel ? (x => String(x).split(',').map(i => opts[+i] || '').join(' + ')) : isMulti ? (x => opts[+x] || '') : showL).join(' / ');
     let res;
@@ -221,7 +230,7 @@ function draw(s) {
     body = waitView(s);
   }
   app.innerHTML = `<header><span class="tn">${esc(me.name)}</span><span class="tot">${m.total || 0} pts &middot; #${m.rank || '-'}</span></header>
-    <div class="main">${body}</div><div class="foot"><button id="lv">Not your team? Leave</button></div>`;
+    <div class="main${lay}">${body}</div><div class="foot"><button id="lv">Not your team? Leave</button></div>`;
   tickTimer();
 }
 
