@@ -236,6 +236,9 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .adjpts .stp{background:#0b1f4d;color:#fff;height:40px;min-width:46px;border-radius:8px}
 .modal-actions .close:disabled{opacity:.45;cursor:not-allowed}
 .devs .ftp{display:inline-flex;align-items:center;gap:4px;background:#FFD90E;color:#050505;border-radius:999px;padding:5px 12px;font-weight:900;font-size:11px}.bolt{height:1em;width:1em;flex-shrink:0}
+.ht{flex-wrap:wrap}.ht .bzr{flex-basis:100%;display:flex;align-items:center;gap:6px;margin-top:2px}
+.bzsel{flex:1;min-width:0;padding:5px 6px;border:1px solid #d9dee7;border-radius:6px;font:13px Arial,sans-serif;color:#050505;background:#fff}
+.bzp{margin-left:0 !important;background:#0b1f4d !important;color:#fff !important;border-radius:6px;padding:5px 12px !important}
 </style>
 </head>
 <body>
@@ -252,6 +255,7 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 </div>
 
 <div class="modal hidden" id="adjModal"><div class="modalbox hbox"><div id="adjBody"></div><div class="modal-actions"><button class="close" onclick="closeAdj()">Close</button></div></div></div>
+<input type="file" id="bzFolder" webkitdirectory multiple style="display:none" onchange="bzAdd(this.files);this.value=''"><input type="file" id="bzFiles" accept="audio/*,.mp3" multiple style="display:none" onchange="bzAdd(this.files);this.value=''">
 <div class="modal hidden" id="homeModal"><div class="modalbox hbox"><div id="homeBody"></div><div class="modal-actions"><button class="close" onclick="closeHome()">Close</button></div></div></div>
 <div class="modal hidden" id="importModal">
  <div class="modalbox">
@@ -677,7 +681,7 @@ function homeQShow(startTimer){home.kpShown=true;home.qShown=true;hq(async()=>{a
  render()}
 function holdHTML(){const r=quiz.rounds[roundIndex],q=r.questions[qIndex];
  return `<div class="st c"><div class="rn">ROUND ${esc(r.number)}</div><div class="bt">QUESTION ${esc(String(q.number||qIndex+1).padStart(2,'0'))}</div><div class="hd">${devils(q)}<span class="pl y">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></div><div class="gr">GET READY&hellip;</div></div>`}
-async function homeShowResults(){try{home.st=await rpc('host_state',hk())}catch(e){home.err=e.message}home.showRes=true;render();homePaint()}
+async function homeShowResults(){try{home.st=await rpc('host_state',hk())}catch(e){home.err=e.message}home.showRes=true;render();homePaint();bzSchedule()}
 function resultsHTML(){const s=home.st;if(!s)return '<div class="st c"><div class="bt">Results</div></div>';
  const T=s.teams,ans=s.answered,ok=s.right,bad=Math.max(0,ans-ok),un=Math.max(0,T.length-ans);
  const f=T.filter(t=>t.bonus>0).sort((a,b)=>b.bonus-a.bonus),q=quiz.rounds[roundIndex].questions[qIndex],lab=['1ST','2ND','3RD'];
@@ -807,14 +811,14 @@ function obsHTML(jr){if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.joi
 const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
 function homeTeamsHTML(){const s=home.st,t=s&&s.teams||[];if(!t.length)return '<p class="note">No teams yet.</p>';
  return t.map(x=>{const on=x.seen!=null&&x.seen<=6,ans=x.letter!=null&&s.state!=='idle';
-  return `<div class="ht"><span class="nm"><i class="dot ${on?'on':''}" title="${on?'Connected':'Not connected'}"></i>${esc(x.name)}${ans?'<span class="tag">Answered</span>':''}<span class="pts">${x.total} pts</span></span><span><button onclick="homeTeam('${x.id}',1)">Rename</button><button onclick="homeTeam('${x.id}',0)">Remove</button></span></div>`}).join('')}
+  return `<div class="ht"><span class="nm"><i class="dot ${on?'on':''}" title="${on?'Connected':'Not connected'}"></i>${esc(x.name)}${ans?'<span class="tag">Answered</span>':''}<span class="pts">${x.total} pts</span></span><span><button onclick="homeTeam('${x.id}',1)">Rename</button><button onclick="homeTeam('${x.id}',0)">Remove</button></span><div class="bzr"><select class="bzsel" onchange="bzSet('${x.id}',this.value)"><option value="">No buzzer</option>${bzNames().map(n=>`<option value="${esc(n)}" ${bz.assign[x.id]===n?'selected':''}>${esc(n)}</option>`).join('')}</select><button class="bzp" onclick="bzPreview('${x.id}')" title="Play this buzzer">&#9654;</button></div></div>`}).join('')}
 async function homeKickOffline(){const s=home.st,off=(s&&s.teams||[]).filter(x=>!(x.seen!=null&&x.seen<=6));
  if(!off.length){document.getElementById('homeMsg').textContent='Everyone is connected.';return}
  if(!confirm('Remove '+off.length+' team'+(off.length>1?'s':'')+' that are not connected?'))return;
  try{for(const x of off)await rpc('host_team',{...hk(),p_team:x.id,p_name:null})}catch(e){document.getElementById('homeMsg').textContent=e.message}
  homePoll()}
 function homePaint(){const b=document.getElementById('homebar');if(b)b.innerHTML=homeBarInner();
- const t=document.getElementById('homeTeams');if(t)t.innerHTML=homeTeamsHTML();const c=document.getElementById('hcount');if(c)c.textContent=home.st?homeConn(home.st)+' connected of '+home.st.teams.length+' joined':'';
+ const t=document.getElementById('homeTeams');if(t){const h=homeTeamsHTML(),ae=document.activeElement;if(t.__h!==h&&!(ae&&t.contains(ae)&&ae.tagName==='SELECT')){t.innerHTML=h;t.__h=h}}const c=document.getElementById('hcount');if(c)c.textContent=home.st?homeConn(home.st)+' connected of '+home.st.teams.length+' joined':'';
  const m=document.getElementById('homeMsg');if(m&&home.err)m.textContent=home.err;
  const hs=document.getElementById('hstat');if(hs&&home.st)hs.textContent=home.st.teams.length+' teams \u00b7 '+home.st.answered+' answers on the current question';
  const hb=document.getElementById('homeBtn');if(hb)hb.classList.toggle('hot',home.live);
@@ -824,7 +828,7 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
  const tabs=`<div class="htabs"><button class="htab ${t==='setup'?'on':''}" onclick="homeTab('setup')">Setup</button><button class="htab ${t==='players'?'on':''}" onclick="homeTab('players')">Players</button><button class="htab ${t==='controls'?'on':''}" onclick="homeTab('controls')">Controls</button></div>`;
  let body;
  if(t==='players'){
-  body=L?`<div class="hl">Teams</div><p class="note" id="hcount" style="margin:2px 0 8px"></p><div id="homeTeams"></div><div class="modal-actions" style="justify-content:flex-start;margin-top:12px"><button class="close danger" onclick="homeKickOffline()">Remove teams that are not connected</button></div>`:'<p class="note" style="margin-top:0">Start a room on the Setup tab to see who joins.</p>';
+  body=L?`${bzControls()}<div class="hl">Teams</div><p class="note" id="hcount" style="margin:2px 0 8px"></p><div id="homeTeams"></div><div class="modal-actions" style="justify-content:flex-start;margin-top:12px"><button class="close danger" onclick="homeKickOffline()">Remove teams that are not connected</button></div>`:'<p class="note" style="margin-top:0">Start a room on the Setup tab to see who joins.</p>';
  }else if(t==='controls'){
   const row=(fn,label,desc,cls)=>`<div class="cbk"><button class="close ${cls||''}" onclick="${fn}">${label}</button><span class="note">${desc}</span></div>`;
   body=(L?`<div class="hl">Room <b>${esc(c.code)}</b></div><p class="note" id="hstat" style="margin:2px 0 12px"></p>`+
@@ -867,7 +871,7 @@ async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg')
  if(!c.url||!c.key){m.textContent='Enter the project URL and key first.';return}
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
- homeSave();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='setup';homeRender();homePoll();homeSync();render()}
+ homeSave();bzAssignLoad();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='setup';homeRender();homePoll();homeSync();render()}
 async function homeStop(){if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;homeRender();render()}
@@ -959,6 +963,39 @@ async function toggleLiveScores(){
  if(home.live)await homePoll();
  obsLive=true;obsLast='';obsSync(false);scBtnUpd()}
 setInterval(scBtnUpd,1500);
+/* ===== Buzzers: one short sound per team, played for the fastest correct team (System_ sounds are for the app) ===== */
+const bz={lib:[],assign:{},urls:{},timer:0};
+const bzSys=n=>/^system_/i.test(String(n)),BZ_AUD=/\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i;
+const bzNames=()=>bz.lib.filter(f=>!bzSys(f.name)).map(f=>f.name).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+const bzKey=()=>'rh_buz_'+(home.cfg.code||'');
+function bzAssignLoad(){try{bz.assign=JSON.parse(localStorage.getItem(bzKey())||'{}')||{}}catch(e){bz.assign={}}}
+function bzAssignSave(){try{localStorage.setItem(bzKey(),JSON.stringify(bz.assign))}catch(e){}}
+async function bzLoad(){try{const v=await kvGet('buzzers');if(Array.isArray(v))bz.lib=v}catch(e){}bzAssignLoad()}
+async function bzSaveLib(){try{await kvSet('buzzers',bz.lib)}catch(e){}}
+function bzMsg(t){const m=document.getElementById('homeMsg');if(m)m.textContent=t}
+function bzAdd(list){const add=[...list].filter(f=>/^audio\//.test(f.type)||BZ_AUD.test(f.name));
+ if(!add.length){bzMsg('No sound files found there.');return}
+ add.forEach(f=>{bz.lib=bz.lib.filter(x=>x.name!==f.name);bz.lib.push({name:f.name,type:f.type||'audio/mpeg',blob:f})});
+ Object.values(bz.urls).forEach(u=>URL.revokeObjectURL(u));bz.urls={};bzSaveLib();homeRender();bzMsg(add.length+' sound'+(add.length>1?'s':'')+' added.')}
+function bzUrl(name){const f=bz.lib.find(x=>x.name===name);if(!f)return null;return bz.urls[name]||(bz.urls[name]=URL.createObjectURL(f.blob))}
+function bzPlay(name){const u=bzUrl(name);if(!u)return false;const a=new Audio(u);a.play().catch(()=>{});setTimeout(()=>{try{a.pause()}catch(e){}},5000);return true}
+function bzPlaySystem(base){const f=bz.lib.find(x=>new RegExp('^system_'+base+'(\\.|$)','i').test(x.name));return f?bzPlay(f.name):false}
+function bzSet(id,name){if(name)bz.assign[id]=name;else delete bz.assign[id];bzAssignSave()}
+function bzPreview(id){const n=bz.assign[id];if(!n){bzMsg('That team has no buzzer yet.');return}bzPlay(n)}
+function bzRandom(){const T=(home.st&&home.st.teams)||[],names=bzNames();
+ if(!names.length){bzMsg('Add some buzzer sounds first.');return}if(!T.length){bzMsg('No teams have joined yet.');return}
+ let pool=[];const out={};T.forEach(t=>{if(!pool.length){pool=names.slice();for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}}out[t.id]=pool.pop()});
+ bz.assign=out;bzAssignSave();const t=document.getElementById('homeTeams');if(t){t.__h='';}homePaint();bzMsg('Buzzers assigned at random.'+(names.length<T.length?' There are fewer sounds than teams, so some are shared.':''))}
+function bzClearAssign(){bz.assign={};bzAssignSave();const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint();bzMsg('Assignments cleared.')}
+async function bzRemoveAll(){if(!confirm('Remove all the buzzer sounds from this browser?'))return;bz.lib=[];bz.assign={};Object.values(bz.urls).forEach(u=>URL.revokeObjectURL(u));bz.urls={};bzAssignSave();await bzSaveLib();homeRender()}
+function bzControls(){const n=bzNames().length,sys=bz.lib.filter(f=>bzSys(f.name)).map(f=>f.name),wo=bz.lib.some(f=>/^system_wipeout(\.|$)/i.test(f.name));
+ return `<div class="hl">Buzzers</div><p class="note" style="margin:2px 0 8px">${n} buzzer sound${n==1?'':'s'} loaded${sys.length?' \u00b7 system sounds: '+esc(sys.join(', ')):''}${wo?'':' \u00b7 no System_WipeOut sound yet'}</p>
+ <div class="modal-actions" style="justify-content:flex-start;gap:6px;flex-wrap:wrap;margin:0 0 12px"><button class="close" onclick="document.getElementById('bzFolder').click()">Add folder</button><button class="close" onclick="document.getElementById('bzFiles').click()">Add files</button><button class="close" onclick="bzRandom()">Random assign all</button><button class="close" onclick="bzClearAssign()">Clear assignments</button><button class="close danger" onclick="bzRemoveAll()">Remove all sounds</button></div>`}
+function bzSchedule(){const s=home.st;if(!s||s.qkey!==qKeyNow())return;const key=qKeyNow();
+ const win=(s.teams||[]).filter(t=>t.ok===true&&t.ms!=null).sort((a,b)=>a.ms-b.ms)[0],none=!win&&s.right===0;
+ if(!win&&!none)return;clearTimeout(bz.timer);
+ bz.timer=setTimeout(()=>{if(!home.live||view!=='quiz'||!home.showRes||qKeyNow()!==key)return;if(win){const n=bz.assign[win.id];if(n)bzPlay(n)}else bzPlaySystem('wipeout')},win?2000:600)}
+bzLoad();
 init();
 </script>
 </body>
