@@ -81,8 +81,9 @@ ol{margin:0;padding-left:34px}li{padding:2px 0}
 <section class="p"><h2>1. Music</h2>
 <div class="row"><button class="g" id="pf">Choose music folder</button><span class="dim" id="fi">No folder yet</span></div>
 <div class="row" style="margin-top:12px"><b>Jingles</b><span class="dim" id="jf">Put them in a folder called Sounds inside your music folder</span></div>
-<div class="dim">Name them bingo-called.mp3, false-call.mp3 and correct-call.mp3 (names containing "called", "false"/"invalid" or "correct" also work). Several files for one event are picked at random.</div>
-<div class="row"><button class="g" data-jt="called">Test: bingo called</button><button class="g" data-jt="false">Test: false call</button><button class="g" data-jt="correct">Test: correct call</button></div>
+<div class="dim">Name them bingo-called.mp3, false-call.mp3 and correct-call.mp3 (names containing "called", "false"/"invalid" or "correct" also work). Several files for one event are picked at random. They load when you choose the music folder (from a Sounds folder inside it) or when you press Choose Sounds folder. After a page reload, choose them again.</div>
+<div class="row"><button class="g" id="pj">Choose Sounds folder</button><button class="g" data-jt="called">Test: bingo called</button><button class="g" data-jt="false">Test: false call</button><button class="g" data-jt="correct">Test: correct call</button></div>
+<div class="dim" id="jmsg"></div>
 <div class="row"><label style="margin:0">Jingle volume</label><input id="jv" type="range" min="0" max="100" style="width:160px;flex:none"></div>
 <div class="row"><label style="margin:0">Start each song this many seconds in</label><input id="sk" type="number" min="0" style="width:80px;flex:none"></div>
 <div class="row"><label style="margin:0">Then play for (seconds, 0 = to the end)</label><input id="cl" type="number" min="0" style="width:80px;flex:none"></div>
@@ -162,32 +163,46 @@ function scramble(t) {
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // Reads the Artist and Title tags embedded in the file (MP3, M4A, FLAC). Anything else falls back to the file name.
-// ---- jingles: bingo called / false call / correct call, from a "Sounds" folder inside the music folder ----
+// ---- jingles: bingo called / false call / correct call, from a Sounds folder ----
 let jingles = { called: [], false: [], correct: [] }, jingleActive = false, resumeAfter = false;
 const jaudio = new Audio();
 const JROLES = [['false', /false|invalid|wrong|fail|buzz/i], ['correct', /correct|valid|win|cheer|applause|fanfare/i], ['called', /call|bingo|alert|siren|horn/i]];   // checked in this order, so "invalid" is a false call
+const JNAMES = { called: 'bingo called', false: 'false call', correct: 'correct call' }, JFILE = { called: 'bingo-called', false: 'false-call', correct: 'correct-call' };
+const jmsg = (t, bad) => { const e = $('jmsg'); e.textContent = t; e.style.color = bad ? 'var(--bad)' : ''; };
+const jcount = () => jingles.called.length + jingles.false.length + jingles.correct.length;
 async function loadJingles(dir) {
-  jingles = { called: [], false: [], correct: [] };
+  jingles = { called: [], false: [], correct: [] }; const ignored = [];
   if (dir) for await (const [n, f] of dir.entries()) {
     if (f.kind !== 'file' || !/\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(n)) continue;
-    const r = JROLES.find(([, re]) => re.test(n)); if (r) jingles[r[0]].push(f);
+    const r = JROLES.find(([, re]) => re.test(n)); if (r) jingles[r[0]].push({ h: f, n }); else ignored.push(n);
   }
-  const t = (l, k) => l + (jingles[k].length ? ' \u2713' + (jingles[k].length > 1 ? ' (' + jingles[k].length + ')' : '') : ' \u2717');
-  $('jf').textContent = dir ? t('Bingo called', 'called') + ' \u00b7 ' + t('False call', 'false') + ' \u00b7 ' + t('Correct call', 'correct') : 'No Sounds folder found inside the music folder';
+  const t = k => JNAMES[k][0].toUpperCase() + JNAMES[k].slice(1) + ': ' + (jingles[k].length ? jingles[k].map(j => j.n).join(', ') + ' \u2713' : 'none found \u2717');
+  $('jf').textContent = dir ? ['called', 'false', 'correct'].map(t).join('  \u00b7  ') + (ignored.length ? '  \u00b7  Not recognised: ' + ignored.join(', ') : '')
+    : 'No Sounds folder found inside the music folder. Press Choose Sounds folder to pick it yourself.';
+  jmsg('');
 }
-async function playJingle(role) {
-  const list = jingles[role]; if (!list || !list.length) return;
-  jingleActive = true;   // hold the music back until the jingle has finished
+async function playJingle(role, test) {   // test = from a Test button, so any problem is explained on screen
+  const list = jingles[role];
+  if (!list || !list.length) {
+    if (test) jmsg(jcount() ? 'No file was recognised for "' + JNAMES[role] + '". Name one ' + JFILE[role] + '.mp3.' : 'No jingles are loaded yet. Press Choose Sounds folder, or choose the music folder again (it needs a folder called Sounds inside).', true);
+    return;
+  }
+  const j = list[Math.random() * list.length | 0]; jingleActive = true;   // the music is held back until the jingle has finished
   try {
-    URL.revokeObjectURL(jaudio.src); jaudio.src = URL.createObjectURL(await list[Math.random() * list.length | 0].getFile());
+    URL.revokeObjectURL(jaudio.src); jaudio.src = URL.createObjectURL(await j.h.getFile());
     jaudio.volume = (hs.jvol == null ? 80 : hs.jvol) / 100; await jaudio.play();
-  } catch (e) { jingleActive = false; }
+    if (test) jmsg('Playing ' + j.n + (hs.jvol === 0 ? ' (the jingle volume slider is at 0)' : ''));
+  } catch (e) {
+    jingleActive = false; const m = 'Could not play ' + j.n + ': ' + (e.message || e.name);
+    if (test) jmsg(m, true); else err(m);
+  }
 }
 function jingleDone() {
   jingleActive = false;
   if (resumeAfter) { resumeAfter = false; if (S && S.state === 'playing' && live && audio.paused) audio.play().catch(() => {}); }
 }
 jaudio.addEventListener('ended', jingleDone);
+jaudio.addEventListener('error', () => { if (jaudio.src) { err('A jingle file could not be played (the browser could not decode it)'); jingleDone(); } });
 jaudio.addEventListener('timeupdate', () => { if (jaudio.currentTime > 12) { jaudio.pause(); jingleDone(); } });   // keep jingles short
 const readTags = file => new Promise(res => {
   const t = setTimeout(() => res(null), 4000);
@@ -203,7 +218,7 @@ async function pickFolder() {
       if (h.kind === 'file' && /\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(n)) files.push({ name: n.replace(/\.[^.]+$/, ''), h });
       else if (h.kind === 'directory' && /^sounds$/i.test(n)) sdir = h;
     }
-    await loadJingles(sdir);
+    if (sdir || !jcount()) await loadJingles(sdir);   // otherwise keep a Sounds folder you chose separately
     files.sort((a, b) => a.name.localeCompare(b.name));   // sorted by file name, so song numbers stay stable between sessions
     const clean = s => String(s || '').replace(/\s+-\s+/g, ' \u2013 ').trim(), q = files.slice(); let n = 0, tagged = 0;
     await Promise.all(Array.from({ length: 6 }, async () => {
@@ -424,7 +439,11 @@ $('en').onclick = () => confirm('End the game for everyone?') && act('bingo_set_
 $('md').onchange = e => { hs.mode = e.target.value; store(); render(); sync(); };
 $('cl').onchange = e => { hs.clip = +e.target.value || 0; store(); };
 $('jv').value = hs.jvol == null ? 80 : hs.jvol; $('jv').oninput = e => { hs.jvol = +e.target.value; store(); };
-document.addEventListener('click', e => { const t = e.target.closest('[data-jt]'); if (t) playJingle(t.dataset.jt); });
+document.addEventListener('click', e => { const t = e.target.closest('[data-jt]'); if (t) playJingle(t.dataset.jt, true); });
+$('pj').onclick = async () => {   // pick the Sounds folder yourself, wherever it is
+  if (!window.showDirectoryPicker) return err('Use Chrome or Edge on a computer to pick a folder');
+  try { await loadJingles(await showDirectoryPicker()); } catch (e) { if (e.name !== 'AbortError') err(e.message); }
+};
 const aspectName = (w, h2) => { const r = w / h2, L = [['16:9', 16 / 9], ['21:9', 21 / 9], ['32:9', 32 / 9], ['16:10', 1.6], ['4:3', 4 / 3], ['1:1', 1], ['9:16', 9 / 16]]; return L.reduce((m, x) => Math.abs(x[1] - r) < Math.abs(m[1] - r) ? x : m)[0]; };
 function showOverlayView() {   // the overlay reports its own size, so you can see it is connected and what shape it is
   let v = null; try { v = JSON.parse(localStorage.getItem('bingo_obs_view') || 'null'); } catch (e) {}
