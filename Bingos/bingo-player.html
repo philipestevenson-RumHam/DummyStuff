@@ -57,6 +57,8 @@ header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#000
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;border-radius:999px;font-weight:800;display:none;z-index:9;max-width:90%;text-align:center;border:2px solid var(--y)}
 @media (prefers-reduced-motion:reduce){.logo,.bb span,.cf i{animation:none}}
 .opt{text-transform:none;letter-spacing:0;color:var(--soft);font-weight:700}
+.mg{display:inline-grid;grid-template-columns:repeat(5,11px);gap:2px;vertical-align:middle;margin-left:10px}.mg i{width:11px;height:11px;border-radius:3px;background:#3a3a3a}.mg i.on{background:var(--y)}.mg i.alt{background:#7a6410}
+.mg i{transition:background .3s}
 </style>
 </head>
 <body>
@@ -75,6 +77,30 @@ const LOGO = 'data:image/webp;base64,UklGRlaMAABXRUJQVlA4WAoAAAAQAAAA3wEA1wEAQUx
 const BC = ['#e63946', '#ffd21a', '#2ecc71', '#1d9bf0', '#a855f7'];   // bingo ball colours
 const balls = w => `<div class="bb">${[...w].map((c, i) => `<span style="--bc:${BC[i % 5]};${i % 5 === 1 ? 'color:#111;text-shadow:none;' : ''}animation-delay:${i * .12}s">${c}</span>`).join('')}</div>`;
 const confetti = () => `<div class="cf">${Array.from({ length: 50 }, () => `<i style="left:${Math.random() * 100}%;background:hsl(${Math.random() * 360} 85% 60%);animation-duration:${3 + Math.random() * 3}s;animation-delay:${-Math.random() * 5}s"></i>`).join('')}</div>`;
+const PATS = { 101: [[0, 4, 20, 24]], 102: [[0, 4, 6, 8, 12, 16, 18, 20, 24]], 103: [[0, 1, 5, 6], [3, 4, 8, 9], [15, 16, 20, 21], [18, 19, 23, 24]] };   // four corners, X shape, postage stamp (cycles through the four corners)
+const LN = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24], [0, 6, 12, 18, 24], [4, 8, 12, 16, 20]];
+const ALLOWED = { h: [0, 1, 2, 3, 4], v: [5, 6, 7, 8, 9], d: [10, 11], a: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] };   // horizontal, vertical, diagonal, or a mix
+const psCache = {};
+function patSets(k, t) {   // every shape worth showing for this prize; the little grid cycles through them
+  t = ALLOWED[t] ? t : 'h'; const key = k + t;
+  if (psCache[key]) return psCache[key];
+  let out;
+  if (PATS[k]) out = PATS[k];
+  else if (k >= 25) out = [Array.from({ length: 25 }, (_, i) => i)];   // full house: every square
+  else {   // k lines: any k of the 12 lines. For two or more, show an evenly spread sample of the combinations
+    const ids = ALLOWED[t], all = [], pick = (from, got) => { if (got.length === k) { all.push([...new Set(got.flatMap(i => LN[i]))]); return; } for (let i = from; i < ids.length; i++) pick(i + 1, got.concat(ids[i])); };
+    pick(0, []); if (!all.length) all.push([]);
+    const n = Math.min(all.length, 12); out = Array.from({ length: n }, (_, j) => all[Math.floor(j * all.length / n)]);
+  }
+  return psCache[key] = out;
+}
+let patStep = 0;
+const patGrid = (k, t) => { if (!k) return ''; const s = patSets(k, t), on = new Set(s[patStep % s.length]); return `<div class="mg" data-k="${k}" data-t="${t || 'h'}">` + Array.from({ length: 25 }, (_, i) => `<i class="${on.has(i) ? 'on' : ''}"></i>`).join('') + '</div>'; };
+setInterval(() => { patStep++; document.querySelectorAll('.mg[data-k]').forEach(g => { const s = patSets(+g.dataset.k, g.dataset.t), on = new Set(s[patStep % s.length]); [...g.children].forEach((c, i) => c.className = on.has(i) ? 'on' : ''); }); }, 1300);
+let wl = null;   // keeps the phone screen on while you're in a game
+async function keepAwake() { try { if (navigator.wakeLock && !wl && !document.hidden) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); } } catch (e) {} }
+function releaseAwake() { if (wl) { wl.release().catch(() => {}); wl = null; } }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof me !== 'undefined' && me) keepAwake(); });
 async function rpc(fn, args) {
   const h = { apikey: SB_KEY, 'Content-Type': 'application/json' };
   if (SB_KEY.startsWith('eyJ')) h.Authorization = 'Bearer ' + SB_KEY;
@@ -97,7 +123,7 @@ const saveMarks = () => { try { localStorage.setItem('rh_bmarks', JSON.stringify
 function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 3200); }
 
 function joinView(msg, room) {
-  clearTimeout(timer); sig = '';
+  clearTimeout(timer); sig = ''; releaseAwake();
   app.innerHTML = `<div class="wrap"><img class="logo" src="${LOGO}" alt="RumHam"><h1>Music Bingo</h1>
     <label for="rc">Room code</label><input id="rc" maxlength="8" autocapitalize="characters" autocomplete="off" value="${esc(room || wantRoom)}">
     <label for="tn">Your name</label><input id="tn" maxlength="24" autocomplete="off">
@@ -149,7 +175,7 @@ function overlay(s, m) {
   return '';
 }
 function draw(s) {
-  lastS = s;
+  lastS = s; if (me && s.state !== 'ended') keepAwake();
   const m = s.me || {};
   if (m.valid === false) {   // removed, or the host started a fresh game: back to the join page, room code filled in
     const rm = me.room; me = null; saveMe(); try { localStorage.removeItem('rh_bmarks'); } catch (x) {}
@@ -160,10 +186,11 @@ function draw(s) {
   if (sg !== msig) { msig = sg; loadMarks(sg); }
   if (wasMine && !s.mine_call && s.state !== 'won') toast('Not a valid bingo. You can call again shortly.');
   wasMine = !!s.mine_call;
-  const key = [s.state, sg, [...marks].join(), s.prize, s.caller, s.mine_call, s.queued, s.late, JSON.stringify(s.win), JSON.stringify(s.winners)].join('~');
+  const key = [s.state, sg, [...marks].join(), s.prize, s.pk, s.pt, s.caller, s.mine_call, s.queued, s.late, JSON.stringify(s.win), JSON.stringify(s.winners)].join('~');
   if (key === sig) { btnState(); return; } sig = key;
 
   if (s.state === 'ended') {
+    releaseAwake();
     app.innerHTML = `<div class="mid"><img class="logo" src="${LOGO}" alt=""><div class="big3">That's the game!</div><div class="sub">Thanks for playing</div>` +
       ((s.winners || []).length ? `<div class="cap">Winners</div><ol class="sb">${s.winners.map(w => `<li><span>${esc(w.prize)}</span><em>${esc(w.name)}</em></li>`).join('')}</ol>` : '') + '</div>';
     return;
@@ -173,7 +200,7 @@ function draw(s) {
     return;
   }
   const status = s.state === 'lobby' ? 'Waiting for the host to start' : s.state === 'paused' && !s.caller ? 'Game paused' :
-    s.prize ? `Playing for <b>${esc(s.prize)}</b> (${s.pnum} of ${s.ptotal})` : 'All prizes won. Playing on for fun';
+    s.prize ? `Playing for <b>${esc(s.prize)}</b> (${s.pnum} of ${s.ptotal})${patGrid(s.pk, s.pt)}` : 'All prizes won. Playing on for fun';
   app.innerHTML = `<header><img class="hl" src="${LOGO}" alt=""><span class="tn">${esc(m.name)}</span><span class="rc">ROOM ${esc(me.room)}<button class="lv" id="lv">LEAVE</button></span></header><div class="wrap">
     <div class="bar">${status}</div>
     <div class="bl"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div><div class="grid">${card.map(cell).join('')}</div>

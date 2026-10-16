@@ -24,6 +24,7 @@ create table if not exists bingo_players (
 create unique index if not exists bingo_players_name on bingo_players (room, lower(name));
 alter table bingo_rooms add column if not exists claim_queue jsonb not null default '[]';   -- further bingo calls waiting behind the current one, in order
 alter table bingo_rooms add column if not exists claim_late uuid[] not null default '{}';   -- callers who were queued when someone else won (told they were too late)
+alter table bingo_players add column if not exists paid boolean not null default false;   -- host ticks this when the player's PayPal payment arrives
 alter table bingo_players add column if not exists ref text;   -- the player's reference or email, to match PayPal payments (host only)
 
 alter table bingo_rooms enable row level security;
@@ -57,15 +58,25 @@ declare
                    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
                    [0,6,12,18,24],[4,8,12,16,20]];
   g boolean[] := array_fill(false, array[25]);
-  ls int := 0; ok boolean;
+  ls int := 0; ok boolean; have int; tot int; kind text;
   k int := coalesce((r.prizes -> r.prize_idx ->> 'k')::int, 1);
+  t text := coalesce(r.prizes -> r.prize_idx ->> 't', 'h');   -- which lines count: h = horizontal, v = vertical, d = diagonal, a = any (a mix)
 begin
   for i in 0..24 loop g[i+1] := (i = any(coalesce(m, '{}'))) and (c[i+1] = any(r.played)); end loop;
   for n in 1..12 loop
-    if g[L[n][1]+1] and g[L[n][2]+1] and g[L[n][3]+1] and g[L[n][4]+1] and g[L[n][5]+1] then ls := ls + 1; end if;
+    if (t = 'a' or (t = 'h' and n <= 5) or (t = 'v' and n between 6 and 10) or (t = 'd' and n >= 11)) and g[L[n][1]+1] and g[L[n][2]+1] and g[L[n][3]+1] and g[L[n][4]+1] and g[L[n][5]+1] then ls := ls + 1; end if;
   end loop;
-  ok := case when k >= 25 then not (false = any(g)) else ls >= k end;
-  return json_build_object('valid', ok, 'lines', ls, 'need', k,
+  -- prize kinds: 1-5 = that many lines, 25 = full house, 101 = four corners, 102 = X shape, 103 = postage stamp (2x2 block in any corner)
+  kind := case k when 101 then 'corners' when 102 then 'x' when 103 then 'stamp' else case when k >= 25 then 'full' else 'lines' end end;
+  if kind = 'lines' then have := ls; tot := k;
+  elsif kind = 'full' then have := (select count(*) from unnest(g) x where x); tot := 25;
+  elsif kind = 'corners' then have := g[1]::int + g[5]::int + g[21]::int + g[25]::int; tot := 4;
+  elsif kind = 'x' then have := g[1]::int + g[5]::int + g[7]::int + g[9]::int + g[13]::int + g[17]::int + g[19]::int + g[21]::int + g[25]::int; tot := 9;
+  else have := greatest(g[1]::int + g[2]::int + g[6]::int + g[7]::int, g[4]::int + g[5]::int + g[9]::int + g[10]::int,
+                        g[16]::int + g[17]::int + g[21]::int + g[22]::int, g[19]::int + g[20]::int + g[24]::int + g[25]::int); tot := 4;
+  end if;
+  ok := have >= tot;
+  return json_build_object('valid', ok, 'kind', kind, 'dir', t, 'have', have, 'of', tot, 'lines', ls, 'need', k,
     'cells', (select json_agg(json_build_object('t', r.songs ->> c[x+1], 'm', x = any(coalesce(m, '{}')), 'p', c[x+1] = any(r.played)) order by x)
                 from generate_series(0, 24) x));
 end $$;
@@ -181,6 +192,14 @@ begin
   if r.claim_by = p_player then perform _bnext(rc); end if;   -- they were mid-call: move on to the next caller, or resume
 end $$;
 
+-- Host ticks (or unticks) a player as having paid their entry.
+create or replace function bingo_set_paid(p_room text, p_key text, p_player uuid, p_paid boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform _bchk(p_room, p_key);
+  update bingo_players set paid = coalesce(p_paid, false) where id = p_player and room = upper(btrim(p_room));
+end $$;
+
 create or replace function bingo_host_state(p_room text, p_key text) returns json
 language plpgsql security definer set search_path = public as $$
 declare r bingo_rooms;
@@ -193,7 +212,7 @@ begin
     'win_ref', (select ref from bingo_players where room = r.code and name = r.win ->> 'name' limit 1),
     'queue', (select coalesce(json_agg(pl.name order by e.o), '[]'::json) from jsonb_array_elements(r.claim_queue) with ordinality e(q, o)
                 join bingo_players pl on pl.id = (e.q ->> 'p')::uuid),
-    'players', (select coalesce(json_agg(json_build_object('id', id, 'name', name, 'ref', ref, 'card', to_json(card),
+    'players', (select coalesce(json_agg(json_build_object('id', id, 'name', name, 'ref', ref, 'paid', paid, 'card', to_json(card),
                   'seen', round(extract(epoch from (clock_timestamp() - last_seen)))) order by joined_at), '[]'::json)
                 from bingo_players where room = r.code),
     'claim', case when r.claim_by is not null then (
@@ -267,7 +286,7 @@ begin
     select * into p from bingo_players where id = p.id;
   end if;
   return json_build_object(
-    'state', r.state, 'prize', r.prizes -> r.prize_idx ->> 'n',
+    'state', r.state, 'prize', r.prizes -> r.prize_idx ->> 'n', 'pk', coalesce((r.prizes -> r.prize_idx ->> 'k')::int, 0), 'pt', coalesce(r.prizes -> r.prize_idx ->> 't', 'h'),
     'pnum', least(r.prize_idx + 1, jsonb_array_length(r.prizes)), 'ptotal', jsonb_array_length(r.prizes),
     'win', r.win, 'winners', r.winners,
     'caller', (select name from bingo_players where id = r.claim_by),

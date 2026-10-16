@@ -407,7 +407,7 @@ function renderMain(){vidPre();
    <div class="meta">
     <span class="pill qn">Question ${String(q.number).padStart(2,'0')}</span>
     <span class="pill cat">${esc(q.category||'')}</span>
-    ${q.isPicture?'<span class="pill">PICTURE</span>':''}${vid?'<span class="pill">VIDEO</span>':''}
+    ${q.isPicture?'<span class="pill">PICTURE</span>':''}${vid?'<span class="pill">VIDEO</span>':''}${home.live&&isVoidNow()?'<span class="pill" style="background:#b42318;color:#fff">VOID</span>':''}
     <span class="mr">${tmrBtn()}${aimg}${devils(q)}<span class="pill points">${ptsN(q)} point${ptsN(q)==1?'':'s'}</span></span>
    </div>
    <div class="qbody ${img?'pic':''}"><div class="qleft">
@@ -461,7 +461,7 @@ function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=
 function keepRev(){justRevealed=false;if(home.live){revealed=false;return}if(revealed)completed.add(roundIndex+'-'+qIndex)}
 function goQ(i){qIndex=i;keepRev();render()}
 function publicReveal(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live){home.qShown=true;home.kpShown=true;homeReveal()}if(!revealed)home.showRes=false;if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
-function nextQ(){if(home.live&&view==='quiz'){if(!home.kpShown){homeKpShow();return}if(!home.qShown){homeQShow(true);return}if(!revealed){publicReveal();return}if(DESK&&!home.showRes){homeShowResults();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
+function nextQ(){if(home.live&&view==='quiz'&&!isVoidNow()){if(!home.kpShown){homeKpShow();return}if(!home.qShown){homeQShow(true);return}if(!revealed){publicReveal();return}if(DESK&&!home.showRes){homeShowResults();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
 function previousQ(){if(qIndex>0){qIndex--;keepRev();render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
@@ -570,6 +570,7 @@ const OBS_CSS2=`.sbT{font:calc(var(--u)*92)/1 var(--d);color:#FFD90E;text-transf
 .rsBn{font:calc(var(--u)*130)/1 var(--d)}.rsBl{font:calc(var(--u)*32)/1 var(--d);letter-spacing:.08em;text-transform:uppercase}.rsTm{font:calc(var(--u)*34)/1 var(--d)}
 .rsE{font:calc(var(--u)*60)/1 var(--d);color:#b9c6da;align-self:center}
 @keyframes rsin{from{transform:translateY(calc(var(--u)*60));opacity:0}to{transform:none;opacity:1}}
+.vd{font:calc(var(--u)*200)/1 var(--d);color:#ff5d5d;letter-spacing:.04em;margin-top:calc(var(--u)*30)}.hd2{font:calc(var(--u)*56)/1 var(--d);color:#b9c6da;margin-top:calc(var(--u)*30)}
 .hd{display:flex;gap:calc(var(--u)*20);align-items:center;justify-content:center;margin-top:calc(var(--u)*30)}
 .gr{font:calc(var(--u)*100)/1 var(--d);color:#FFD90E;letter-spacing:.1em;margin-top:calc(var(--u)*50);animation:grp 1.6s ease-in-out infinite}@keyframes grp{50%{opacity:.35}}
 .devs .ftp{display:inline-flex;align-items:center;gap:calc(var(--u)*8);background:#FFD90E;color:#050505;border-radius:999px;padding:calc(var(--u)*8) calc(var(--u)*26);font:calc(var(--u)*34)/1 var(--d)}.bolt{height:1em;width:1em;flex-shrink:0}
@@ -656,7 +657,7 @@ function stopHold(){clearTimeout(holdT);clearInterval(holdI)}
  c.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.stp'))e.preventDefault()});
 })();
 /* ===== Play at home (Supabase) ===== */
-const home={kpShown:false,qShown:false,showRes:false,live:false,cfg:{},st:null,err:'',openedQ:null,chain:Promise.resolve(),busy:false,acc:{}};
+const home={voidQ:new Set(),kpShown:false,qShown:false,showRes:false,live:false,cfg:{},st:null,err:'',openedQ:null,chain:Promise.resolve(),busy:false,acc:{}};
 const tn=t=>names[t]||('Team '+(t+1));
 const qKeyNow=()=>roundIndex+'-'+qIndex;
 try{home.cfg=JSON.parse(localStorage.getItem('rh_home')||'{}')||{}}catch(e){home.cfg={}}
@@ -671,7 +672,7 @@ const hk=()=>({p_room:home.cfg.code,p_key:home.cfg.hk});
 function hq(fn){home.chain=home.chain.then(fn).catch(e=>{home.err=e.message;homePaint()});return home.chain}
 function defLetters(a){a=String(a||'').trim().replace(/^[^A-Za-z0-9]+/,'');const out=[],m=a.match(/^(the|a|an)\s+(\S)/i);
  if(m){out.push(a[0].toUpperCase(),m[2].toUpperCase())}else if(/^[A-Za-z]/.test(a))out.push(a[0].toUpperCase());return out.filter(x=>/^[A-Z]$/.test(x)).map(x=>x==='Y'?'X':x)}
-function nextLabel(r){const last=qIndex>=r.questions.length-1;if(home.live){if(!home.kpShown)return 'SHOW KEYPAD';if(!home.qShown)return 'SHOW QUESTION';if(!revealed)return 'SHOW ANSWER';if(DESK&&!home.showRes)return 'SHOW RESULTS'}return last?'SCORES \u2192':'NEXT \u2192'}
+function nextLabel(r){const last=qIndex>=r.questions.length-1;if(home.live&&!isVoidNow()){if(!home.kpShown)return 'SHOW KEYPAD';if(!home.qShown)return 'SHOW QUESTION';if(!revealed)return 'SHOW ANSWER';if(DESK&&!home.showRes)return 'SHOW RESULTS'}return last?'SCORES \u2192':'NEXT \u2192'}
 function homeKpShow(){home.kpShown=true;hq(async()=>{await rpc('set_kpshow',{...hk(),p_show:true});homePoll()});render()}
 function toggleAnswer(){if(home.live&&view==='quiz'){if(!revealed){hostPeek=!hostPeek;render()}return}publicReveal()}
 function revealBtnLabel(){if(home.live)return revealed?'ANSWER SHOWN':hostPeek?'HIDE HOST ANSWER':'SHOW HOST ANSWER';return revealed?'HIDE ANSWER':'SHOW ANSWER'}
@@ -732,13 +733,13 @@ function homeReveal(){const qk=qKeyNow();hq(async()=>{if(home.openedQ!==qk){awai
  await rpc('reveal_question',hk());home.err='';homePoll()})}
 function homeAccEdit(){const k=qKeyNow(),v=prompt(...accPrompt());if(v===null)return;
  {const cq=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];home.acc[k]=qTypeOf(cq)==='sort'?(()=>{const n=(v.match(/\d+/g)||[]).map(x=>parseInt(x,10)-1),N=optsOf(cq).length;return n.length===N&&n.every(x=>x>=0&&x<N)&&new Set(n).size===N?[n.join(',')]:[]})():qTypeOf(cq)==='multisel'?(()=>{const n=[...new Set((v.match(/\d+/g)||[]).map(x=>parseInt(x,10)-1).filter(x=>x>=0&&x<optsOf(cq).length))].sort((a,b)=>a-b);return n.length?[n.join(',')]:[]})():qTypeOf(cq)==='multi'?((v.match(/\d+/)||[]).map(x=>String(parseInt(x,10)-1)).filter(x=>+x>=0&&+x<optsOf(cq).length)):qTypeOf(cq)==='number'?((v.match(/\d+/g)||[]).map(x=>String(parseInt(x,10)))):(v.toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x)}hq(async()=>{await rpc('open_question',{...hk(),p_qkey:k,p_correct:home.acc[k],...qInfo(k)});if(home.st&&home.st.state==='revealed'&&home.st.qkey===k)await rpc('reveal_question',hk());homePoll()})}
-async function homePoll(){if(!home.live||home.busy)return;home.busy=true;try{home.st=await rpc('host_state',hk());home.err=''}catch(e){home.err=e.message}home.busy=false;homePaint()}
+async function homePoll(){if(!home.live||home.busy)return;home.busy=true;try{home.st=await rpc('host_state',hk());home.err='';home.voidQ=new Set(home.st.voided||[])}catch(e){home.err=e.message}home.busy=false;homePaint()}
 setInterval(homePoll,1500);
 function homeBarInner(){if(!home.live)return'';if(home.err)return 'HOME: '+esc(home.err);const s=home.st;if(!s)return 'HOME: connecting\u2026';
  const acc=accNow(),a=acc.length?accShow(acc):'none \u2013 set one';
  let t=`HOME ${esc(home.cfg.code)} \u00b7 <b>${s.answered}</b>/${s.teams.length} answered \u00b7 ${homeConn(s)} online`;if(s.state==='revealed'&&s.qkey===qKeyNow())t+=` \u00b7 ${s.right} correct`;
  {const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],z=qSet(q);t+=` \u00b7 ${Math.round(tmrMs()/1000)}s \u00b7 ${z.pts} pts (+${z.b1}/${z.b2}/${z.b3})`;const ev=qEvil(q);if(ev.kind!=='none')t+=` \u00b7 ${ev.kind==='really'?'REALLY EVIL':'EVIL'} \u2212${ev.pts}`}
- if(!home.kpShown)t+=' \u00b7 <b>KEYPAD AND QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';else if(!home.qShown)t+=' \u00b7 <b>QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';if(home.showRes)t+=' \u00b7 RESULTS ON OBS';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
+ if(isVoidNow())t+=' \u00b7 <b>QUESTION VOID - NO POINTS SCORED</b>';else if(!home.kpShown)t+=' \u00b7 <b>KEYPAD AND QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';else if(!home.qShown)t+=' \u00b7 <b>QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';if(home.showRes)t+=' \u00b7 RESULTS ON OBS';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
 function homeBarHTML(){return home.live&&view==='quiz'?`<div class="homebar" id="homebar">${homeBarInner()}</div>`:''}
 function chipInner(){const s=home.st;if(!home.live||!s||s.qkey!==qKeyNow())return'';
  if(s.state==='open'||s.state==='closed')return `HOME \u00b7 <b>${s.answered}</b> / ${s.teams.length} answered`;
@@ -807,7 +808,7 @@ function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t
  return `<div class="st jn"><div class="jh">${lg?`<img class="jlg" src="${lg}" alt="">`:''}<div class="jt">${esc(quiz.title||'Quiz Night')}</div></div>
  <div class="jm"><div class="jleft"><div class="jk">PLAY AT HOME</div><div class="jcl">ROOM CODE</div><div class="jc">${esc(c.code||'')}</div><div class="ju">${esc(addr)}</div></div>${qr?`<div class="jqr">${qr}<div class="jqc">SCAN TO JOIN</div></div>`:''}</div>
  <div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
-function obsHTML(jr){if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&!home.qShown&&!revealed)return holdHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
+function obsHTML(jr){if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&isVoidNow())return voidHTML();if(home.live&&view==='quiz'&&!home.qShown&&!revealed)return holdHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
 const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
 function homeTeamsHTML(){const s=home.st,t=s&&s.teams||[];if(!t.length)return '<p class="note">No teams yet.</p>';
  return t.map(x=>{const on=x.seen!=null&&x.seen<=6,ans=x.letter!=null&&s.state!=='idle';
@@ -836,6 +837,7 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
     row("homeClear('all')",'Clear all answers and points','Starts the scoring from zero. Teams stay in the room.','danger')+
     row("homeClear('teams')",'Remove all teams','Everyone has to join again. The room code stays the same.','danger')+
     row("homeNewRoom()",'Start a new room','Deletes this room and creates a fresh one with a new code.','danger')+
+    voidControls()+
     row("homeStop()",'Stop &amp; delete room','Ends home play and deletes the room, its teams and its points.','danger')
    :'<p class="note" style="margin-top:0">Start a room on the Setup tab to see the room controls.</p>')+
    '<div class="hl" style="margin-top:14px">This device</div>'+
@@ -995,6 +997,26 @@ function bzSchedule(){const s=home.st;if(!s||s.qkey!==qKeyNow())return;const key
  const win=(s.teams||[]).filter(t=>t.ok===true&&t.ms!=null).sort((a,b)=>a.ms-b.ms)[0],none=!win&&s.right===0;
  if(!win&&!none)return;clearTimeout(bz.timer);
  bz.timer=setTimeout(()=>{if(!home.live||view!=='quiz'||!home.showRes||qKeyNow()!==key)return;if(win){const n=bz.assign[win.id];if(n)bzPlay(n)}else bzPlaySystem('wipeout')},win?2000:600)}
+/* ===== Void a question ===== */
+const isVoidNow=()=>home.live&&view==='quiz'&&(home.voidQ.has(qKeyNow())||!!(home.st&&home.st.void&&home.st.qkey===qKeyNow()));
+function voidHTML(){const r=quiz.rounds[roundIndex],q=r.questions[qIndex];
+ return `<div class="st c"><div class="rn">ROUND ${esc(r.number)} \u00b7 QUESTION ${esc(String(q.number||qIndex+1).padStart(2,'0'))}</div><div class="vd">QUESTION VOID</div><div class="hd2">No points scored</div></div>`}
+function voidLabel(k){const [ri,qi]=k.split('-').map(Number),r=quiz.rounds[ri],q=r&&r.questions[qi];return r&&q?`Round ${r.number} \u00b7 Q${q.number||qi+1}: ${String(q.question||'').slice(0,42)}`:k}
+function voidControls(){const cur=view==='quiz'?qKeyNow():'',V=[...home.voidQ];
+ const opts=quiz.rounds.map((r,ri)=>`<optgroup label="Round ${esc(r.number)}">${r.questions.map((q,qi)=>{const k=ri+'-'+qi;return `<option value="${k}" ${k===cur?'selected':''}>${esc('Q'+(q.number||qi+1)+': '+String(q.question||'').slice(0,46))}${home.voidQ.has(k)?' (voided)':''}</option>`}).join('')}</optgroup>`).join('');
+ return `<div class="cbk"><div class="hl">Void a question</div><select class="hin" id="voidSel" style="margin-bottom:6px">${opts}</select><button class="close danger" onclick="homeVoid()">Void this question</button><span class="note">Wipes every answer, bonus and penalty for it (gifts and steals stay). Players see "Question void" and it can't be answered or scored again.</span></div>`+
+ (V.length?`<div class="hl">Voided so far</div>`+V.map(k=>`<div class="ht"><span class="nm">${esc(voidLabel(k))}</span><button onclick="homeUnvoid('${k}')">Un-void</button></div>`).join('')+'<div style="height:12px"></div>':'')}
+async function homeVoid(){const sel=document.getElementById('voidSel'),k=sel&&sel.value,m=document.getElementById('homeMsg');if(!k)return;
+ if(!confirm('Void '+voidLabel(k)+'?\n\nEvery answer, bonus and penalty for it is wiped, and players see "Question void".'))return;
+ try{await rpc('void_question',{...hk(),p_qkey:k})}catch(e){m.textContent=e.message;return}
+ home.voidQ.add(k);
+ if(view==='quiz'&&k===qKeyNow()){revealed=false;hostPeek=false;home.showRes=false;home.qShown=true;home.kpShown=true;tm={s:'idle',left:tmrMs(),end:0};homeTimer();if(hv.el)hv.el.pause();render()}
+ await homePoll();render();homeRender();document.getElementById('homeMsg').textContent='Voided.'}
+async function homeUnvoid(k){const m=document.getElementById('homeMsg');
+ try{await rpc('unvoid_question',{...hk(),p_qkey:k})}catch(e){m.textContent=e.message;return}
+ home.voidQ.delete(k);
+ if(view==='quiz'&&k===qKeyNow()){home.qShown=false;home.kpShown=false;revealed=false;home.showRes=false;render()}
+ await homePoll();render();homeRender();document.getElementById('homeMsg').textContent='Un-voided. That question will run again from Show keypad.'}
 bzLoad();
 init();
 </script>

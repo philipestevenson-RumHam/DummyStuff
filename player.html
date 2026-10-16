@@ -64,6 +64,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;pa
 .evil .dv{height:30px;width:auto;flex:none}
 .evil.fastb{background:rgba(255,217,14,.16);border-color:#FFD90E;color:#fff3b0}.evil .bolt{height:26px;width:26px;color:#FFD90E;flex:none}
 .qc.hold{color:#b9c6da;text-align:center}.ftline{color:#FFD90E !important;font-weight:900}
+.voidcap{color:#ff7b7b !important;font-size:30px !important}
 .numdisp{width:100%;max-width:360px;background:#fff;color:var(--ink);border-radius:14px;padding:10px 14px;font:900 clamp(34px,11vw,48px)/1.1 Arial,sans-serif;min-height:1.3em;letter-spacing:.04em;overflow:hidden}
 .npad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:360px}
 .nk{height:clamp(52px,9.5vh,72px);border-radius:12px;background:linear-gradient(180deg,#2a5bb8,#173f78);color:#fff;font-weight:900;font-size:clamp(24px,7vw,32px);box-shadow:0 4px 0 #0a2250}
@@ -202,14 +203,16 @@ function draw(s) {
   if (s.qkey !== msQ) { msQ = s.qkey; msPend = new Set(); }
   if (msFly === 0) msPend = new Set();
   const picked = new Set(String(m.letter || '').split(',').filter(x => x !== '').concat([...msPend]));
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null), s.kphidden].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null), s.kphidden, s.void].join('|');
   if (key === sig) return; sig = key;
 
   const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : (s.qhidden ? '<div class="qc hold">' + (s.kphidden ? 'Get ready&hellip;' : 'Get ready&hellip; the question is coming up') + '</div>' : '');
   const lock = l => `<div class="lock ${isNum ? 'num' : isMulti ? 'opt' : l === 'X' ? 'xy' : ''}">${esc(isNum ? l : isMulti ? (opts[+l] || '?') : showL(l))}</div>`;
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
   let body, lay = '';
-  if (s.state === 'open') {
+  if (s.void) {
+    body = `<div class="cap voidcap">Question void</div><div class="sub">This question has been voided.<br>No points were scored or lost.</div>${qc}`;
+  } else if (s.state === 'open') {
     lay = ' qlayout';
     const ins = s.kphidden ? '' : (isSort ? sortpad(opts, seq, !!m.letter) + (m.letter ? `<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : ''}</div>` : '') : isSel ? selpad(opts, picked) : L ? `${lock(L)}<div class="cap">Locked in</div><div class="sub">${secs ? 'Answered in ' + secs : 'Sending&hellip;'}</div>` : (isNum ? numpad() : isMulti ? optpad(opts) : keypad()));
     body = `<div id="tmr" class="tm"></div>${evilBar(s.evil)}${fastBar(s.fast)}<div class="qzone">${qc}</div><div class="izone">${ins}</div>`;
