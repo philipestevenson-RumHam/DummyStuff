@@ -661,7 +661,7 @@ const home={voidQ:new Set(),kpShown:false,qShown:false,showRes:false,live:false,
 const tn=t=>names[t]||('Team '+(t+1));
 const qKeyNow=()=>roundIndex+'-'+qIndex;
 try{home.cfg=JSON.parse(localStorage.getItem('rh_home')||'{}')||{}}catch(e){home.cfg={}}
-const HOME_DEFAULTS={url:'https://fgsbfspzktxrwdyvhldc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc2Jmc3B6a3R4cndkeXZobGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MzI1MTcsImV4cCI6MjEwNzIwODUxN30.ns574hMPQ5nkQUnpirmrrTYhN6MwH1YFR4qhlp6EddI',player:'https://philipestevenson-rumham.github.io/DummyStuff/player.html'};
+const HOME_DEFAULTS={url:'https://fgsbfspzktxrwdyvhldc.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc2Jmc3B6a3R4cndkeXZobGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MzI1MTcsImV4cCI6MjEwNzIwODUxN30.ns574hMPQ5nkQUnpirmrrTYhN6MwH1YFR4qhlp6EddI',player:'https://philipestevenson-rumham.github.io/DummyStuff/player.html',bingo:'https://philipestevenson-rumham.github.io/DummyStuff/Bingos/bingo-host.html'};
 for(const k in HOME_DEFAULTS)if(!home.cfg[k])home.cfg[k]=HOME_DEFAULTS[k];
 home.live=DESK&&!!(home.cfg.url&&home.cfg.key&&home.cfg.code&&home.cfg.hk);
 function homeSave(){try{localStorage.setItem('rh_home',JSON.stringify(home.cfg))}catch(e){}}
@@ -826,10 +826,16 @@ function homePaint(){const b=document.getElementById('homebar');if(b)b.innerHTML
  if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if((obsScore&&obsScore.join)||home.showRes||obsLive)obsSync(false)}}
 function playerLink(){const c=home.cfg,p=c.player||'';return p?p+(p.includes('?')?'&':'?')+'r='+c.code:''}
 function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
- const tabs=`<div class="htabs"><button class="htab ${t==='setup'?'on':''}" onclick="homeTab('setup')">Setup</button><button class="htab ${t==='players'?'on':''}" onclick="homeTab('players')">Players</button><button class="htab ${t==='controls'?'on':''}" onclick="homeTab('controls')">Controls</button></div>`;
+ const tabs=`<div class="htabs"><button class="htab ${t==='setup'?'on':''}" onclick="homeTab('setup')">Setup</button><button class="htab ${t==='players'?'on':''}" onclick="homeTab('players')">Players</button><button class="htab ${t==='controls'?'on':''}" onclick="homeTab('controls')">Controls</button><button class="htab ${t==='bingo'?'on':''}" onclick="homeTab('bingo')">Bingo</button></div>`;
  let body;
  if(t==='players'){
   body=L?`${bzControls()}<div class="hl">Teams</div><p class="note" id="hcount" style="margin:2px 0 8px"></p><div id="homeTeams"></div><div class="modal-actions" style="justify-content:flex-start;margin-top:12px"><button class="close danger" onclick="homeKickOffline()">Remove teams that are not connected</button></div>`:'<p class="note" style="margin-top:0">Start a room on the Setup tab to see who joins.</p>';
+ }else if(t==='bingo'){
+  const u=String(c.bingo||'').trim();
+  body=`<p class="note" style="margin-top:0">Opens the bingo host page in a new browser tab, so this quiz keeps running here.</p>
+  <div class="hl">Bingo host page address</div><input class="hin" value="${esc(u)}" placeholder="https://your-site/Bingos/bingo-host.html" onchange="homeField('bingo',this.value)">
+  ${u?`<p class="note" style="margin:0 0 10px"><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a></p>`:''}
+  <div class="modal-actions" style="justify-content:flex-start;gap:6px"><button class="close" onclick="bingoOpen()">Open bingo host</button><button class="close" onclick="bingoCopy()">Copy link</button></div>`;
  }else if(t==='controls'){
   const row=(fn,label,desc,cls)=>`<div class="cbk"><button class="close ${cls||''}" onclick="${fn}">${label}</button><span class="note">${desc}</span></div>`;
   body=(L?`<div class="hl">Room <b>${esc(c.code)}</b></div><p class="note" id="hstat" style="margin:2px 0 12px"></p>`+
@@ -851,6 +857,9 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
  <div class="modal-actions" style="justify-content:flex-start;margin-top:12px">${L?(DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen from OBS</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):'<p class="note" style="margin:0">Players join with the room code and link above.</p>'):`<button class="close" onclick="homeStart()">Start room</button>`}</div>`;
  }
  document.getElementById('homeBody').innerHTML=`<h2>Play at home</h2>${tabs}${body}<div class="note" id="homeMsg"></div>`;homePaint()}
+function bingoOpen(){const u=String(home.cfg.bingo||'').trim();if(!u){bzMsg('Enter the bingo host page address first.');return}window.open(u,'_blank','noopener')}
+async function bingoCopy(){const u=String(home.cfg.bingo||'').trim();if(!u){bzMsg('Enter the bingo host page address first.');return}
+ try{await navigator.clipboard.writeText(u);bzMsg('Link copied.')}catch(e){const i=document.createElement('input');i.value=u;document.body.appendChild(i);i.select();try{document.execCommand('copy');bzMsg('Link copied.')}catch(e2){bzMsg('Could not copy - select the link above and copy it.')}i.remove()}}
 function homeTab(t){home.tab=t;homeRender()}
 async function homeClear(kind){
  const msg={q:'Clear the answers for this question?',all:'Clear ALL answers and points for every team? Teams stay in the room.',teams:'Remove every team from the room? They will need to rejoin.'}[kind],m=document.getElementById('homeMsg');
