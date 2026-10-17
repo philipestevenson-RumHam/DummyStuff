@@ -239,6 +239,12 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .ht{flex-wrap:wrap}.ht .bzr{flex-basis:100%;display:flex;align-items:center;gap:6px;margin-top:2px}
 .bzsel{flex:1;min-width:0;padding:5px 6px;border:1px solid #d9dee7;border-radius:6px;font:13px Arial,sans-serif;color:#050505;background:#fff}
 .bzp{margin-left:0 !important;background:#0b1f4d !important;color:#fff !important;border-radius:6px;padding:5px 12px !important}
+.lvgrid{display:flex;gap:8px}.lvc{flex:1;background:#eef0f4;border-radius:10px;padding:8px 4px;text-align:center;color:#050505}.lvc b{display:block;font:900 26px Arial,sans-serif}.lvc span{font-size:11px;color:#667085;font-weight:700}
+.qa{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.lvlink{display:flex;gap:6px;align-items:flex-start}.lvlink .hin{margin:0 0 12px}
+.dz{margin-top:16px;border:2px solid #b42318;border-radius:10px;padding:10px 12px}.dz .cbk:last-child{margin-bottom:0}.dzh{color:#b42318}
+.tctl{display:flex;gap:8px;margin-bottom:6px}.tctl .tq{flex:1;margin-bottom:0}.tctl .tsort{width:9.5em;margin-bottom:0}
+.tr{margin:4px 0;font-weight:700}.tr.ok{color:#067647}.tr.bad{color:#b42318}
+.ht .bzr{margin-top:4px}
 </style>
 </head>
 <body>
@@ -810,51 +816,104 @@ function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t
  <div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
 function obsHTML(jr){if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&isVoidNow())return voidHTML();if(home.live&&view==='quiz'&&!home.qShown&&!revealed)return holdHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
 const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
-function homeTeamsHTML(){const s=home.st,t=s&&s.teams||[];if(!t.length)return '<p class="note">No teams yet.</p>';
- return t.map(x=>{const on=x.seen!=null&&x.seen<=6,ans=x.letter!=null&&s.state!=='idle';
-  return `<div class="ht"><span class="nm"><i class="dot ${on?'on':''}" title="${on?'Connected':'Not connected'}"></i>${esc(x.name)}${ans?'<span class="tag">Answered</span>':''}<span class="pts">${x.total} pts</span></span><span><button onclick="homeTeam('${x.id}',1)">Rename</button><button onclick="homeTeam('${x.id}',0)">Remove</button></span><div class="bzr"><select class="bzsel" onchange="bzSet('${x.id}',this.value)"><option value="">No buzzer</option>${bzNames().map(n=>`<option value="${esc(n)}" ${bz.assign[x.id]===n?'selected':''}>${esc(n)}</option>`).join('')}</select><button class="bzp" onclick="bzPreview('${x.id}')" title="Play this buzzer">&#9654;</button></div></div>`}).join('')}
+function homeTeamsHTML(){const s=home.st;let t=[...(s&&s.teams||[])];if(!t.length)return '<p class="note">No teams yet.</p>';
+ const on=x=>x.seen!=null&&x.seen<=6,q=(home.tq||'').trim().toLowerCase(),so=home.tsort||'joined';
+ if(q)t=t.filter(x=>x.name.toLowerCase().includes(q));
+ if(so==='name')t.sort((a,b)=>a.name.localeCompare(b.name));else if(so==='points')t.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));else if(so==='conn')t.sort((a,b)=>(on(b)-on(a))||a.name.localeCompare(b.name));
+ if(!t.length)return '<p class="note">No teams match that search.</p>';
+ return t.map(x=>{const o=on(x),ans=x.letter!=null&&s.state!=='idle';
+  return `<div class="ht"><span class="nm"><i class="dot ${o?'on':''}" title="${o?'Connected':'Not connected'}"></i>${esc(x.name)}${ans?'<span class="tag">Answered</span>':''}<span class="pts">${x.total} pts</span></span><span><button onclick="homeAdjTeam('${x.id}')">Adjust</button><button onclick="homeTeam('${x.id}',1)">Rename</button><button onclick="homeTeam('${x.id}',0)">Remove</button></span><div class="bzr"><select class="bzsel" onchange="bzSet('${x.id}',this.value)"><option value="">No buzzer</option>${bzNames().map(n=>`<option value="${esc(n)}" ${bz.assign[x.id]===n?'selected':''}>${esc(n)}</option>`).join('')}</select><button class="bzp" onclick="bzPreview('${x.id}')" title="Play this buzzer">&#9654;</button></div></div>`}).join('')}
 async function homeKickOffline(){const s=home.st,off=(s&&s.teams||[]).filter(x=>!(x.seen!=null&&x.seen<=6));
  if(!off.length){document.getElementById('homeMsg').textContent='Everyone is connected.';return}
  if(!confirm('Remove '+off.length+' team'+(off.length>1?'s':'')+' that are not connected?'))return;
  try{for(const x of off)await rpc('host_team',{...hk(),p_team:x.id,p_name:null})}catch(e){document.getElementById('homeMsg').textContent=e.message}
  homePoll()}
 function homePaint(){const b=document.getElementById('homebar');if(b)b.innerHTML=homeBarInner();
- const t=document.getElementById('homeTeams');if(t){const h=homeTeamsHTML(),ae=document.activeElement;if(t.__h!==h&&!(ae&&t.contains(ae)&&ae.tagName==='SELECT')){t.innerHTML=h;t.__h=h}}const c=document.getElementById('hcount');if(c)c.textContent=home.st?homeConn(home.st)+' connected of '+home.st.teams.length+' joined':'';
+ const t=document.getElementById('homeTeams');if(t){const h=homeTeamsHTML(),ae=document.activeElement;if(t.__h!==h&&!(ae&&t.contains(ae)&&ae.tagName==='SELECT')){t.innerHTML=h;t.__h=h}}const c=document.getElementById('hcount');if(c)c.textContent=home.st?homeConn(home.st)+' connected of '+home.st.teams.length+' joined':'';const li=document.getElementById('liveInfo');if(li)li.innerHTML=liveInfoHTML();
  const m=document.getElementById('homeMsg');if(m&&home.err)m.textContent=home.err;
  const hs=document.getElementById('hstat');if(hs&&home.st)hs.textContent=home.st.teams.length+' teams \u00b7 '+home.st.answered+' answers on the current question';
  const hb=document.getElementById('homeBtn');if(hb)hb.classList.toggle('hot',home.live);
  if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if((obsScore&&obsScore.join)||home.showRes||obsLive)obsSync(false)}}
 function playerLink(){const c=home.cfg,p=c.player||'';return p?p+(p.includes('?')?'&':'?')+'r='+c.code:''}
-function homeRender(){const c=home.cfg,L=home.live,t=home.tab||'setup';
- const tabs=`<div class="htabs"><button class="htab ${t==='setup'?'on':''}" onclick="homeTab('setup')">Setup</button><button class="htab ${t==='players'?'on':''}" onclick="homeTab('players')">Players</button><button class="htab ${t==='controls'?'on':''}" onclick="homeTab('controls')">Controls</button><button class="htab ${t==='bingo'?'on':''}" onclick="homeTab('bingo')">Bingo</button></div>`;
+function homeStage(){
+ if(view!=='quiz')return 'Not on a question';
+ const r=quiz.rounds[roundIndex],q=r.questions[qIndex],lab='Round '+r.number+' \u00b7 Q'+(q.number||qIndex+1);
+ if(isVoidNow())return lab+' \u2014 void';
+ if(!home.kpShown)return lab+' \u2014 keypad not shown yet';
+ if(!home.qShown)return lab+' \u2014 keypad open, question hidden';
+ if(!revealed)return lab+' \u2014 question showing';
+ if(!home.showRes)return lab+' \u2014 answer shown';
+ return lab+' \u2014 results shown'}
+function liveInfoHTML(){const s=home.st;if(!s)return '<p class="note">Connecting\u2026</p>';
+ return `<div class="lvgrid"><div class="lvc"><b>${s.teams.length}</b><span>teams joined</span></div><div class="lvc"><b>${homeConn(s)}</b><span>connected now</span></div><div class="lvc"><b>${s.answered}</b><span>answered this question</span></div></div><p class="note" style="margin:8px 0 0"><b>Now:</b> ${esc(homeStage())}</p>`}
+async function homeCopyLink(){const u=playerLink();try{await navigator.clipboard.writeText(u);bzMsg('Player link copied.')}catch(e){bzMsg('Select the link and copy it.')}}
+function homeTq(v){home.tq=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
+function homeTsort(v){home.tsort=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
+function homeAdjTeam(id){closeHome();adj.kind='gift';adj.to=id;adj.from='';openAdj()}
+const DB_VERSION='2026-10-16';
+async function homeTestConn(){const el=document.getElementById('homeTest'),c=home.cfg;if(!el)return;
+ if(!c.url||!c.key){el.innerHTML='<p class="tr bad">Enter the project URL and key first.</p>';return}
+ el.innerHTML='<p class="note">Testing\u2026</p>';
+ const U='00000000-0000-0000-0000-000000000000',R='ZZZZ',K='x',P={p_room:R,p_key:K};
+ const probes=[['app_version',{}],['open_question',{...P,p_qkey:'0-0',p_correct:[],p_question:null,p_answer:null,p_points:5,p_b1:3,p_b2:2,p_b3:1,p_qtype:'letter',p_options:null,p_evil_kind:'none',p_penalty:0,p_fast:false}],
+  ['set_state',{...P,p_state:'idle'}],['reveal_question',P],['host_state',P],['host_rounds',P],['host_team',{...P,p_team:U,p_name:null}],['join_team',{p_room:R,p_name:'test'}],
+  ['submit_answer',{p_room:R,p_team:U,p_secret:U,p_letter:'A'}],['get_state',{p_room:R,p_team:null,p_secret:null}],['set_timer',{...P,p_state:'idle',p_left:0}],['set_phase',{...P,p_phase:'contents',p_info:{}}],
+  ['set_qshow',{...P,p_show:true}],['set_kpshow',{...P,p_show:true}],['clear_answers',P],['clear_teams',P],['clear_question',{...P,p_qkey:'0-0'}],
+  ['host_adjust',{...P,p_kind:'gift',p_from:null,p_to:U,p_pts:1,p_qkey:'0-0'}],['host_adjustments',P],['host_undo_adjust',{...P,p_pair:U}],
+  ['void_question',{...P,p_qkey:'0-0'}],['unvoid_question',{...P,p_qkey:'0-0'}],['delete_room',P],['create_room',{p_code:null,p_key:null}]];
+ let unreachable=false,keyBad=false,ver=null;const missing=[];
+ await Promise.all(probes.map(async([fn,args])=>{try{const r=await rpc(fn,args);if(fn==='app_version')ver=r}catch(e){const m=String(e.message||e);
+   if(/Failed to fetch|NetworkError|Load failed/i.test(m))unreachable=true;else if(/Invalid API key|apikey|JWT/i.test(m))keyBad=true;else if(/Could not find the function|PGRST202/i.test(m))missing.push(fn)}}));
+ const line=(ok,t)=>`<p class="tr ${ok?'ok':'bad'}">${ok?'\u2713':'\u2717'} ${t}</p>`;let h='';
+ if(unreachable)h=line(false,'Could not reach Supabase. Check the project URL and your internet connection.');
+ else if(keyBad)h=line(false,'Supabase rejected the key. Check the anon / publishable key.');
+ else{h=line(true,'Connected to Supabase');
+  if(missing.includes('app_version'))h+=line(false,'The database has no version marker, so it is out of date. Run supabase-setup.sql again.');
+  else h+=line(ver===DB_VERSION,ver===DB_VERSION?'Database version matches this page ('+esc(ver)+')':'Database version is '+esc(ver)+' but this page expects '+DB_VERSION+'. Run the latest supabase-setup.sql.');
+  const miss=missing.filter(x=>x!=='app_version');
+  h+=line(!miss.length,miss.length?'Missing functions: '+esc(miss.join(', '))+'. Run supabase-setup.sql again.':'All '+(probes.length-1)+' functions are present');
+  if(home.live){try{await rpc('host_state',hk());h+=line(true,'Room '+esc(c.code)+' is running')}catch(e){h+=line(false,'Room '+esc(c.code)+': '+esc(e.message))}}}
+ el.innerHTML=h}
+function homeRender(){const c=home.cfg,L=home.live,t=home.tab||(L?'live':'setup'),tb=(id,l)=>`<button class="htab ${t===id?'on':''}" onclick="homeTab('${id}')">${l}</button>`;
+ const tabs=`<div class="htabs">${tb('live','Live')}${tb('players','Teams')}${tb('sounds','Sounds')}${tb('setup','Setup')}${tb('bingo','Bingo')}</div>`;
+ const row=(fn,label,desc,cls)=>`<div class="cbk"><button class="close ${cls||''}" onclick="${fn}">${label}</button><span class="note">${desc}</span></div>`;
+ const noRoom='<p class="note" style="margin-top:0">No room is running. Go to the Setup tab and press Start room.</p>';
  let body;
- if(t==='players'){
-  body=L?`${bzControls()}<div class="hl">Teams</div><p class="note" id="hcount" style="margin:2px 0 8px"></p><div id="homeTeams"></div><div class="modal-actions" style="justify-content:flex-start;margin-top:12px"><button class="close danger" onclick="homeKickOffline()">Remove teams that are not connected</button></div>`:'<p class="note" style="margin-top:0">Start a room on the Setup tab to see who joins.</p>';
+ if(t==='live'){
+  body=!L?noRoom+'<div class="modal-actions" style="justify-content:flex-start"><button class="close" onclick="homeTab(\'setup\')">Go to Setup</button></div>':
+  `<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div>
+  <div class="hl">Player link</div><div class="lvlink"><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><button class="close" onclick="homeCopyLink()">Copy</button></div>
+  <div id="liveInfo">${liveInfoHTML()}</div>
+  <div class="hl" style="margin-top:14px">Quick actions</div>
+  <div class="qa">${DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):''}<button class="close" onclick="closeHome();toggleLiveScores()">${obsLive?'Hide scores on OBS':'Scores on OBS'}</button><button class="close" onclick="closeHome();openAdj()">Adjust scores&hellip;</button><button class="close" onclick="homeClear('q')">Clear this question</button></div>
+  ${voidControls()}
+  <div class="dz"><div class="hl dzh">Danger zone</div>
+  ${row("homeClear('all')",'Clear all answers and points','Starts the scoring from zero. Teams stay in the room.','danger')}
+  ${row("homeClear('teams')",'Remove all teams','Everyone has to join again. The room code stays the same.','danger')}
+  ${row("homeNewRoom()",'Start a new room','Deletes this room and creates a fresh one with a new code.','danger')}
+  ${row("homeStop()",'Stop &amp; delete room','Ends home play and deletes the room, its teams and its points.','danger')}
+  ${row("resetProgress()",'Reset quiz progress and scores','This device only: clears the Scores slide, imported team names and which questions are done.','danger')}</div>`;
+ }else if(t==='players'){
+  const so=home.tsort||'joined',op=(v,l)=>`<option value="${v}" ${so===v?'selected':''}>${l}</option>`;
+  body=L?`<div class="tctl"><input class="hin tq" id="tq" placeholder="Search teams&hellip;" value="${esc(home.tq||'')}" oninput="homeTq(this.value)"><select class="hin tsort" onchange="homeTsort(this.value)">${op('joined','Joined order')}${op('name','Name')}${op('points','Points')}${op('conn','Connection')}</select></div>
+  <p class="note" id="hcount" style="margin:0 0 8px"></p><div id="homeTeams"></div>
+  <div class="modal-actions" style="justify-content:flex-start;margin-top:12px"><button class="close danger" onclick="homeKickOffline()">Remove teams that are not connected</button></div>`:noRoom;
+ }else if(t==='sounds'){
+  const sys=bz.lib.filter(f=>bzSys(f.name)).map(f=>esc(f.name)),wo=bz.lib.some(f=>/^system_wipeout(\.|$)/i.test(f.name));
+  body=`${bzControls()}<p class="note" style="margin:8px 0 0">The fastest correct team's buzzer plays on the results screen. If nobody is right, <b>System_WipeOut</b> plays: <span class="tr ${wo?'ok':'bad'}">${wo?'\u2713 found':'\u2717 not loaded yet'}</span>. Files starting System_ are never offered as buzzers.</p>`;
  }else if(t==='bingo'){
   const u=String(c.bingo||'').trim();
   body=`<p class="note" style="margin-top:0">Opens the bingo host page in a new browser tab, so this quiz keeps running here.</p>
   <div class="hl">Bingo host page address</div><input class="hin" value="${esc(u)}" placeholder="https://your-site/Bingos/bingo-host.html" onchange="homeField('bingo',this.value)">
   ${u?`<p class="note" style="margin:0 0 10px"><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a></p>`:''}
   <div class="modal-actions" style="justify-content:flex-start;gap:6px"><button class="close" onclick="bingoOpen()">Open bingo host</button><button class="close" onclick="bingoCopy()">Copy link</button></div>`;
- }else if(t==='controls'){
-  const row=(fn,label,desc,cls)=>`<div class="cbk"><button class="close ${cls||''}" onclick="${fn}">${label}</button><span class="note">${desc}</span></div>`;
-  body=(L?`<div class="hl">Room <b>${esc(c.code)}</b></div><p class="note" id="hstat" style="margin:2px 0 12px"></p>`+
-    row("homeClear('q')",'Clear this question','Wipes the answers for the question on screen and lets teams answer it again.')+
-    row("homeClear('all')",'Clear all answers and points','Starts the scoring from zero. Teams stay in the room.','danger')+
-    row("homeClear('teams')",'Remove all teams','Everyone has to join again. The room code stays the same.','danger')+
-    row("homeNewRoom()",'Start a new room','Deletes this room and creates a fresh one with a new code.','danger')+
-    voidControls()+
-    row("homeStop()",'Stop &amp; delete room','Ends home play and deletes the room, its teams and its points.','danger')
-   :'<p class="note" style="margin-top:0">Start a room on the Setup tab to see the room controls.</p>')+
-   '<div class="hl" style="margin-top:14px">This device</div>'+
-   row("resetProgress()",'Reset quiz progress and scores','Clears the scores slide, imported team names and which questions have been done. The quiz stays loaded.','danger');
  }else{
-  body=`<p class="note" style="margin-top:0">Players tap the first letter of the answer on their phones. 5 points per correct answer, plus 3, 2 and 1 for the fastest three. Run <b>supabase-setup.sql</b> once in your project first.</p>
+  body=`<p class="note" style="margin-top:0">Run <b>supabase-setup.sql</b> once in your Supabase project, then fill these in. They are remembered in this browser.</p>
  <div class="hl">Supabase project URL</div><input class="hin" value="${esc(c.url||'')}" placeholder="https://xxxx.supabase.co" onchange="homeField('url',this.value)">
  <div class="hl">Anon / publishable key</div><input class="hin" value="${esc(c.key||'')}" onchange="homeField('key',this.value)">
  <div class="hl">Player page address</div><input class="hin" value="${esc(c.player||'')}" placeholder="https://your-site/player.html" onchange="homeField('player',this.value)">
- ${L?`<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div><div class="hl">Player link</div><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><p class="note">See who is connected on the Players tab.</p>`:''}
- <div class="modal-actions" style="justify-content:flex-start;margin-top:12px">${L?(DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen from OBS</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):'<p class="note" style="margin:0">Players join with the room code and link above.</p>'):`<button class="close" onclick="homeStart()">Start room</button>`}</div>`;
+ <div class="modal-actions" style="justify-content:flex-start;gap:6px">${L?'':`<button class="close" onclick="homeStart()">Start room</button>`}<button class="close" onclick="homeTestConn()">Test connection</button></div>
+ <div id="homeTest" style="margin-top:8px"></div>${L?`<p class="note">Room <b>${esc(c.code)}</b> is running. Everything you need during the quiz is on the Live tab.</p>`:''}`;
  }
  document.getElementById('homeBody').innerHTML=`<h2>Play at home</h2>${tabs}${body}<div class="note" id="homeMsg"></div>`;homePaint()}
 function bingoOpen(){const u=String(home.cfg.bingo||'').trim();if(!u){bzMsg('Enter the bingo host page address first.');return}window.open(u,'_blank','noopener')}
@@ -876,16 +935,16 @@ async function homeNewRoom(){if(!confirm('Delete this room and start a new one w
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';home.live=false;home.st=null;home.openedQ=null;home.acc={};home.tab='setup';await homeStart()}
 function homeField(k,v){home.cfg[k]=String(v).trim();homeSave()}
-function openHome(){if(!DESK)return;homeRender();document.getElementById('homeModal').classList.remove('hidden');homePoll()}
+function openHome(){if(!DESK)return;if(!home.tab)home.tab=home.live?'live':'setup';homeRender();document.getElementById('homeModal').classList.remove('hidden');homePoll()}
 function closeHome(){document.getElementById('homeModal').classList.add('hidden')}
 async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg');
  if(!c.url||!c.key){m.textContent='Enter the project URL and key first.';return}
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
- homeSave();bzAssignLoad();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='setup';homeRender();homePoll();homeSync();render()}
+ homeSave();bzAssignLoad();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='live';homeRender();homePoll();homeSync();render()}
 async function homeStop(){if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
- home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;homeRender();render()}
+ home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;home.tab='setup';homeRender();render()}
 function homeTeam(id,ren){let name=null;if(ren){name=prompt('New team name');if(name==null||!name.trim())return}else if(!confirm('Remove this team?'))return;
  hq(async()=>{await rpc('host_team',{...hk(),p_team:id,p_name:name});homePoll()})}
 const joinOn=()=>!!(obsScore&&obsScore.join&&obs&&!obs.closed);

@@ -590,3 +590,7 @@ begin
                    timer_state = 'idle', timer_end = null, timer_left = null
    where code = rc and qkey = p_qkey and state <> 'idle';
 end $$;
+
+-- ---------- version marker (the Test connection button compares this with the host page) ----------
+create or replace function app_version() returns text
+language sql immutable as $$ select '2026-10-16'::text $$;
