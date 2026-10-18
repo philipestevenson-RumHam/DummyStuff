@@ -59,6 +59,17 @@ header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#000
 .opt{text-transform:none;letter-spacing:0;color:var(--soft);font-weight:700}
 .mg{display:inline-grid;grid-template-columns:repeat(5,11px);gap:2px;vertical-align:middle;margin-left:10px}.mg i{width:11px;height:11px;border-radius:3px;background:#3a3a3a}.mg i.on{background:var(--y)}.mg i.alt{background:#7a6410}
 .mg i{transition:background .3s}
+.lk{background:none;color:var(--y);font:800 15px 'Nunito',Arial,sans-serif;text-decoration:underline;padding:8px;margin:0 auto}
+.how{z-index:4;background:rgba(5,5,5,.97);justify-content:flex-start;padding-top:56px;overflow:auto}
+.how .card{width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:14px;position:relative}
+.how h2{margin:0;font:400 clamp(28px,8vw,38px)/1.1 'Lilita One',Impact,sans-serif;color:var(--y);-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:0 3px 0 #000}
+.how p{margin:0;color:#fff;font-weight:800;font-size:17px;line-height:1.35}.how p b{color:var(--y)}
+.how .x{position:absolute!important;right:14px;top:14px;font-size:18px;padding:8px 14px}
+.how .dots{display:flex;gap:8px}.how .dots i{width:10px;height:10px;border-radius:50%;background:#4a4636}.how .dots i.on{background:var(--y)}
+.how .nav{display:flex;gap:10px;width:100%}.how .nav button{flex:1}
+.hcards{display:grid;grid-template-columns:repeat(3,92px);gap:6px;justify-content:center}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;text-align:left}.legend>div{display:flex;gap:10px;align-items:center;font-size:14px;font-weight:800;line-height:1.2}
+.mg.lg{grid-template-columns:repeat(5,13px);margin:0;flex:none}.mg.lg i{width:13px;height:13px}
 </style>
 </head>
 <body>
@@ -122,13 +133,16 @@ function loadMarks(sg) {
 const saveMarks = () => { try { localStorage.setItem('rh_bmarks', JSON.stringify({ id: me.id, sg: msig, m: [...marks] })); } catch (e) {} };
 function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 3200); }
 
+let calling = false, prevState = null, markTimer = 0;   // save the ticked squares on the server a moment after you stop tapping, so another phone can restore them
+function syncMarks() { clearTimeout(markTimer); markTimer = setTimeout(() => { if (me) rpc('bingo_set_marks', { p_room: me.room, p_player: me.id, p_secret: me.secret, p_marks: [...marks] }).catch(() => {}); }, 1200); }
 function joinView(msg, room) {
   clearTimeout(timer); sig = ''; releaseAwake();
   app.innerHTML = `<div class="wrap"><img class="logo" src="${LOGO}" alt="RumHam"><h1>Music Bingo</h1>
     <label for="rc">Room code</label><input id="rc" maxlength="8" autocapitalize="characters" autocomplete="off" value="${esc(room || wantRoom)}">
     <label for="tn">Your name</label><input id="tn" maxlength="24" autocomplete="off">
     <label for="rf">Reference or email <span class="opt">(so we can match your PayPal payment)</span></label><input id="rf" maxlength="80" autocomplete="email" placeholder="Same one you paid with">
-    <button class="big" id="jb">JOIN</button><p class="err" id="je">${esc(msg || '')}</p></div>`;
+    <button class="big" id="jb">JOIN</button>
+    <button class="lk" id="hw">How to play</button><p class="err" id="je">${esc(msg || '')}</p></div>`;
   const go = async () => {
     const room = $('rc').value.trim().toUpperCase(), name = $('tn').value.trim();
     $('je').textContent = ''; $('jb').disabled = true;
@@ -175,7 +189,7 @@ function overlay(s, m) {
   return '';
 }
 function draw(s) {
-  lastS = s; if (me && s.state !== 'ended') keepAwake();
+  lastS = s; if (me && s.state !== 'ended') keepAwake(); maybeHow(s);
   const m = s.me || {};
   if (m.valid === false) {   // removed, or the host started a fresh game: back to the join page, room code filled in
     const rm = me.room; me = null; saveMe(); try { localStorage.removeItem('rh_bmarks'); } catch (x) {}
@@ -183,8 +197,10 @@ function draw(s) {
   }
   coolEnd = Date.now() + (+m.cool || 0);
   const card = m.card, sg = card ? card.join('|') : '';
-  if (sg !== msig) { msig = sg; loadMarks(sg); }
-  if (wasMine && !s.mine_call && s.state !== 'won') toast('Not a valid bingo. You can call again shortly.');
+  if (sg !== msig) { msig = sg; loadMarks(sg); if (!marks.size && m.marks && m.marks.length) { marks = new Set(m.marks); saveMarks(); } }   // a new phone picks up the ticks saved on the server
+  if (wasMine && !s.mine_call && s.state !== 'won') { toast('Not a valid bingo. You can call again shortly.'); buzz(250); }
+  if (s.state === 'won' && s.win && s.win.name === m.name && prevState !== 'won') buzz([120, 60, 120, 60, 400]);   // a winner's celebration buzz
+  prevState = s.state;
   wasMine = !!s.mine_call;
   const key = [s.state, sg, [...marks].join(), s.prize, s.pk, s.pt, s.caller, s.mine_call, s.queued, s.late, JSON.stringify(s.win), JSON.stringify(s.winners)].join('~');
   if (key === sig) { btnState(); return; } sig = key;
@@ -201,7 +217,7 @@ function draw(s) {
   }
   const status = s.state === 'lobby' ? 'Waiting for the host to start' : s.state === 'paused' && !s.caller ? 'Game paused' :
     s.prize ? `Playing for <b>${esc(s.prize)}</b> (${s.pnum} of ${s.ptotal})${patGrid(s.pk, s.pt)}` : 'All prizes won. Playing on for fun';
-  app.innerHTML = `<header><img class="hl" src="${LOGO}" alt=""><span class="tn">${esc(m.name)}</span><span class="rc">ROOM ${esc(me.room)}<button class="lv" id="lv">LEAVE</button></span></header><div class="wrap">
+  app.innerHTML = `<header><img class="hl" src="${LOGO}" alt=""><span class="tn">${esc(m.name)}</span><span class="rc">ROOM ${esc(me.room)}<button class="lv" id="hq" aria-label="How to play">?</button><button class="lv" id="lv">LEAVE</button></span></header><div class="wrap">
     <div class="bar">${status}</div>
     <div class="bl"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div><div class="grid">${card.map(cell).join('')}</div>
     <div class="hint">Tap a song when you hear it</div>
@@ -211,24 +227,71 @@ function draw(s) {
 function btnState() {
   const b = $('cb'); if (!b || !lastS) return;
   const l = coolEnd - Date.now(), ok = !lastS.caller && !!lastS.prize && (lastS.state === 'playing' || lastS.state === 'paused');
-  b.disabled = !ok || l > 0; b.textContent = l > 0 ? 'Wait ' + Math.ceil(l / 1000) + 's' : lastS.prize ? 'CALL BINGO' : 'NO PRIZES LEFT';
+  b.disabled = !ok || l > 0 || calling; b.textContent = calling ? 'SENDING\u2026' : l > 0 ? 'Wait ' + Math.ceil(l / 1000) + 's' : lastS.prize ? 'CALL BINGO' : 'NO PRIZES LEFT';
 }
 setInterval(btnState, 500);
 
 app.addEventListener('click', e => {
   const c = e.target.closest('[data-c]');
   if (c && lastS && !lastS.caller && lastS.state !== 'won' && lastS.state !== 'ended') {
-    const i = +c.dataset.c; marks.has(i) ? marks.delete(i) : marks.add(i); saveMarks(); sig = ''; draw(lastS);
+    const i = +c.dataset.c; marks.has(i) ? marks.delete(i) : marks.add(i); saveMarks(); syncMarks(); sig = ''; draw(lastS);
   }
   if (e.target.closest('#lv') && confirm('Leave this game?')) {
     me = null; saveMe(); try { localStorage.removeItem('rh_bmarks'); } catch (x) {} clearTimeout(timer); sig = ''; joinView(); return;
   }
+  if (e.target.closest('#hq') || e.target.closest('#hw')) { showHow(0); return; }
   if (e.target.closest('#cb')) callBingo();
 });
+// ---- How to play: three short screens, opened by the ? button, shown once automatically on a new phone ----
+let howSeen = false, howIdx = 0; try { howSeen = !!localStorage.getItem('rh_howto'); } catch (e) {}
+const SHAPES = [['Horizontal line', 'Any row', [10, 11, 12, 13, 14]], ['Vertical line', 'Any column', [2, 7, 12, 17, 22]], ['Diagonal line', 'Corner to corner', [0, 6, 12, 18, 24]],
+  ['Four corners', 'The four corners', [0, 4, 20, 24]], ['X shape', 'Both diagonals', [0, 4, 6, 8, 12, 16, 18, 20, 24]], ['Postage stamp', 'A 2\u00d72 block in any corner', [0, 1, 5, 6], [[3, 4, 8, 9], [15, 16, 20, 21], [18, 19, 23, 24]]],
+  ['Full house', 'All 25 squares', Array.from({ length: 25 }, (_, i) => i)]];
+const shapeGrid = (on, alt) => '<div class="mg lg">' + Array.from({ length: 25 }, (_, i) => `<i class="${on.includes(i) ? 'on' : (alt || []).some(a => a.includes(i)) ? 'alt' : ''}"></i>`).join('') + '</div>';
+const HOW = [
+  () => `<h2>Listen and tick</h2><div class="hcards"><div class="c"><b>Dancing Queen</b><i>Abba</i></div><div class="c on"><b>Wonderwall</b><i>Oasis</i></div><div class="c"><b>Valerie</b><i>Amy Winehouse</i></div></div><p>Songs play on the stream. When you hear one that's on your card, <b>tap its square</b> to tick it. Tap again to untick.</p>`,
+  () => `<h2>Call BINGO</h2><div class="big" style="pointer-events:none;width:100%">CALL BINGO</div><p>When your ticked squares make the prize being played for, press <b>CALL BINGO</b>. The music stops while the host checks your card.</p><p>A wrong call means a short wait before you can call again, so only call when you're sure.</p>`,
+  () => `<h2>What counts?</h2><p>The prize you're playing for is shown above your card, with a little shape. Prizes can be one line or several, across, down, diagonal or any direction.</p><div class="legend">${SHAPES.map(([n, d, on, alt]) => `<div>${shapeGrid(on, alt)}<span><b style="color:var(--y)">${n}</b><br>${d}</span></div>`).join('')}</div><p style="font-size:14px;color:var(--soft)">New phone? Join again with the same name and reference to get your card back.</p>`];
+function closeHow() { const el = $('how'); if (el) el.remove(); }
+function showHow(i) {
+  howIdx = Math.max(0, Math.min(HOW.length - 1, i || 0)); let el = $('how');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'how'; el.className = 'over how'; document.body.appendChild(el);
+    el.addEventListener('click', e => { if (e.target.closest('#hx')) closeHow(); else if (e.target.closest('#hn')) { howIdx < HOW.length - 1 ? showHow(howIdx + 1) : closeHow(); } else if (e.target.closest('#hb')) showHow(howIdx - 1); });
+  }
+  el.innerHTML = `<button class="lv x" id="hx" aria-label="Close">\u2715</button><div class="card">${HOW[howIdx]()}<div class="dots">${HOW.map((_, j) => `<i class="${j === howIdx ? 'on' : ''}"></i>`).join('')}</div><div class="nav">${howIdx ? '<button class="big" id="hb" style="background:#2a2a2a;color:#fff;font-size:22px">Back</button>' : ''}<button class="big" id="hn" style="font-size:22px">${howIdx < HOW.length - 1 ? 'Next' : 'Got it!'}</button></div></div>`;
+  howSeen = true; try { localStorage.setItem('rh_howto', '1'); } catch (e) {}
+}
+function maybeHow(s) { if (howSeen || $('how') || !s.me || !s.me.card || s.caller || s.state === 'won' || s.state === 'ended') return; showHow(0); }   // once, on a phone that has never seen it
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHow(); });
+const buzz = pattern => { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} };   // a short buzz where the phone supports it
+function showSending() {   // appears the instant Call Bingo is pressed, before the server has answered
+  hideSending(); const d = document.createElement('div'); d.className = 'over'; d.id = 'snd';
+  d.innerHTML = `${balls('BINGO')}<div class="big3" id="sndt">Sending your call&hellip;</div><div class="sub" id="snds">Hold on</div>`; document.body.appendChild(d);
+}
+function hideSending() { const d = $('snd'); if (d) d.remove(); }
+const sndSay = (t, s) => { if ($('sndt')) { $('sndt').textContent = t; $('snds').textContent = s || ''; } };
+const isNetworkError = e => !!e && (e.name === 'TypeError' || /Failed to fetch|NetworkError|Load failed|Timed out|Connection problem/i.test(e.message || ''));   // by name and wording, not instanceof, so it works whatever the browser
+const withTimeout = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new TypeError('Timed out')), ms))]);
 async function callBingo() {
-  const b = $('cb'); if (b) b.disabled = true;
-  try { await rpc('bingo_call', { p_room: me.room, p_player: me.id, p_secret: me.secret, p_marks: [...marks] }); poll(); }
-  catch (e) { toast(e.message); btnState(); }
+  if (calling || !me) return;
+  calling = true; buzz(40); showSending(); btnState();
+  let res = null, err = null;
+  for (let attempt = 1; attempt <= 3 && !res; attempt++) {
+    try { res = await withTimeout(rpc('bingo_call', { p_room: me.room, p_player: me.id, p_secret: me.secret, p_marks: [...marks] }), 8000); }
+    catch (e) {
+      if (/already called/i.test(e.message)) { res = { ok: true, queued: null }; break; }   // an earlier try had reached the server
+      err = e;
+      if (!isNetworkError(e)) break;   // a real answer (e.g. on cooldown): don't retry
+      if (attempt < 3) { sndSay('Weak signal. Trying again\u2026', 'Attempt ' + (attempt + 1) + ' of 3'); await new Promise(r => setTimeout(r, attempt * 1200)); }   // give a brief outage a moment to pass
+    }
+  }
+  if (res) {
+    buzz([30, 40, 30]);
+    sndSay(res.queued ? "You're in the queue" : 'Your call is in!', res.queued ? 'The host is checking another card first' : 'The host is checking your card');
+    await poll();   // the real screen takes over from here
+  } else { buzz([80, 60, 80]); toast(err && !isNetworkError(err) ? err.message : "Couldn't send your call. Check your signal and try again."); }
+  hideSending(); calling = false; btnState();
 }
 
 me ? poll() : joinView();

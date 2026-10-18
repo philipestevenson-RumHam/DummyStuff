@@ -56,6 +56,9 @@ ol{margin:0;padding-left:34px}li{padding:2px 0}
 .pd{cursor:pointer;margin-left:8px;padding:1px 9px;border-radius:99px;font-weight:700;font-size:15px}.pd.y{background:#17492c;color:#7dffb0;box-shadow:inset 0 0 0 1px var(--ok)}.pd.n{background:#3a1a1a;color:#ff9a9a;box-shadow:inset 0 0 0 1px var(--bad)}
 .wt{width:100%;border-collapse:collapse;margin-top:10px}.wt th,.wt td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--ln)}.wt th{color:var(--dim)}
 .mg{display:inline-grid;grid-template-columns:repeat(5,14px);gap:2px;vertical-align:middle;margin-left:10px}.mg i{width:14px;height:14px;border-radius:3px;background:#3a3a3a}.mg i.on{background:#ffd21a}.mg i.alt{background:#7a6410}
+#undo{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:40;background:#000;border:2px solid var(--gold);border-radius:14px;padding:10px 18px;display:flex;gap:16px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.7);font-size:21px}
+.ck{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--ln)}.ci{flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
+.ci.ok{background:#17492c;color:#7dffb0}.ci.bad{background:#5a2020;color:#ff9a9a}.ci.warn{background:#4a3a0a;color:var(--gold)}
 </style>
 </head>
 <body>
@@ -73,7 +76,8 @@ ol{margin:0;padding-left:34px}li{padding:2px 0}
 <div class="row" style="margin-top:14px"><button class="big" id="nx">Start / next song</button><button class="g big" id="pz">Pause</button><button class="g big" id="rv">Reveal</button></div>
 <div class="row"><span class="dim">Stream shows</span><select id="md" style="width:auto"><option value="anagram">Anagram</option><option value="plain">Plain title</option><option value="hidden">Hidden</option></select><span class="sp"></span><button class="r" id="en">End game</button></div>
 </section>
-<section class="p" style="grid-area:played"><h2>Played so far</h2><ol id="ps" reversed></ol></section>
+<section class="p" id="pre" style="grid-area:played"></section>
+<section class="p" id="pdp" style="grid-area:played"><h2>Played so far</h2><ol id="ps" reversed></ol></section>
 <section class="p" style="grid-area:close"><h2>Who's close</h2><div class="dim">Based on the songs played so far, assuming each player has marked every song correctly. "Could call now" means they have the prize on their card but haven't called.</div><div id="cq"></div></section>
 </div>
 
@@ -137,6 +141,7 @@ ol{margin:0;padding-left:34px}li{padding:2px 0}
 </section>
 </div>
 </main>
+<div id="undo" hidden><span id="undot"></span><button id="undob">Undo</button></div>
 <script>
 /* ---- Paste your NEW music bingo Supabase details here (Project settings > API) ---- */
 const CFG = { url: 'https://fgsbfspzktxrwdyvhldc.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc2Jmc3B6a3R4cndkeXZobGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MzI1MTcsImV4cCI6MjEwNzIwODUxN30.ns574hMPQ5nkQUnpirmrrTYhN6MwH1YFR4qhlp6EddI' };   // same Supabase project as the quiz
@@ -288,7 +293,7 @@ function sched() {
 audio.addEventListener('ended', () => live && done());
 audio.addEventListener('timeupdate', () => { const c = +$('cl').value; if (live && c > 0 && audio.currentTime >= curStart + c) done(); });
 
-async function poll() { try { apply(await R('bingo_host_state')); $('net').hidden = true; } catch (e) { $('net').hidden = false; $('net').textContent = e.message; } }
+async function poll() { try { apply(await R('bingo_host_state')); lastOk = Date.now(); $('net').hidden = true; } catch (e) { $('net').hidden = false; $('net').textContent = e.message; } }
 async function loop() { await poll(); setTimeout(loop, 1000); }
 function apply(s) {
   const first = S === null, hadClaim = !!(S && S.claim);
@@ -363,7 +368,8 @@ function render() {
       const judge = ok => async () => {   // record what the stream should show (the card and the verdict), then tell the server
         const c = S && S.claim; if (!c) return;
         const v = { ok, name: c.name, cells: c.check.cells, lines: c.check.lines, need: c.check.need, kind: c.check.kind, dir: c.check.dir, have: c.check.have, of: c.check.of, at: Date.now() };
-        try { await R('bingo_judge', { p_ok: ok }); verdict = v; sync(); poll(); playJingle(ok ? 'correct' : 'false'); } catch (e) { err(e.message); }
+        try { await R('bingo_judge', { p_ok: ok }); verdict = v; sync(); poll(); playJingle(ok ? 'correct' : 'false');
+        undoInfo = { until: Date.now() + 15000, text: 'Marked ' + v.name + "'s call " + (ok ? 'VALID' : 'NOT VALID') }; /* 15 seconds to change your mind */ } catch (e) { err(e.message); }
       };
       $('jy').onclick = judge(true); $('jn').onclick = judge(false);
     }
@@ -375,7 +381,7 @@ function render() {
     const nx = S.prizes[S.prize_idx];
     w.innerHTML = `<h2>Congratulations ${esc(S.win.name)}!</h2><div class="v ok">${esc(S.win.prize)}${pAmt(S.prize_idx - 1) ? ' &middot; ' + esc(pAmt(S.prize_idx - 1)) : ''}</div><div class="dim">Reference: ${esc(S.win_ref || 'none given')} ${payBadge(S.players.find(p => p.name === S.win.name))}</div>
       <div class="dim">${nx ? 'Next prize: ' + esc(nx.n) + (pAmt(S.prize_idx) ? ' (' + esc(pAmt(S.prize_idx)) + ')' : '') : 'That was the last prize.'}</div><div class="row">${nx ? '<button id="ct">Continue</button>' : '<button id="ct">Carry on playing the remaining songs</button><button class="r" id="fin">Finish game</button>'}</div>`;
-    $('ct').onclick = act('bingo_set_state', { p_state: nx ? 'playing' : 'free' });
+    $('ct').onclick = () => { undoInfo = null; act('bingo_set_state', { p_state: nx ? 'playing' : 'free' })(); };
     if (!nx) $('fin').onclick = act('bingo_set_state', { p_state: 'ended' });
   }
 }
@@ -588,6 +594,41 @@ $('rhv').onclick = () => rhCall('valid'); $('rhw').onclick = () => rhCall('wrong
 $('rhskipb').onclick = () => rhSkip(Math.min(40, Math.max(1, +$('rhskipn').value || 10)));
 document.addEventListener('click', e => { const p = e.target.closest('[data-pv]'); if (p) startPreview(p.dataset.pv); });
 setInterval(botTick, 1000);
+// ---- undo the last verdict (15 seconds) ----
+let undoInfo = null, lastOk = 0;   // lastOk: the last time the database answered
+function renderUndo() {
+  const el = $('undo'), u = undoInfo, left = u ? Math.ceil((u.until - Date.now()) / 1000) : 0;
+  if (!u || left <= 0) { undoInfo = null; el.hidden = true; return; }
+  el.hidden = false; $('undot').textContent = u.text + (u.done ? '' : '  (' + left + 's)'); $('undob').hidden = !!u.done;
+}
+$('undob').onclick = async () => {
+  try { await R('bingo_undo'); undoInfo = { until: Date.now() + 2500, text: 'Undone. The call is back for you to judge.', done: true }; verdict = null; jaudio.pause(); jingleDone(); sync(); poll(); }
+  catch (e) { err(e.message); undoInfo = null; }
+};
+setInterval(renderUndo, 250);
+// ---- pre-flight checklist: shown in place of the played list until the first song starts ----
+function renderPre() {
+  const el = $('pre'), pdp = $('pdp'), started = !!(S && (S.played.length > 0 || S.state !== 'lobby'));
+  el.hidden = started; pdp.hidden = !started; if (started) return;
+  let view = null; try { view = JSON.parse(localStorage.getItem('bingo_obs_view') || 'null'); } catch (e) {}
+  const np = S ? S.players.length : 0, nj = jcount();
+  const items = [   // [key, state, label, what to do if it isn't ok, where to go]
+    ['db', Date.now() - lastOk < 6000 ? 'ok' : 'bad', 'Database reachable', "Can't reach the database. Check your internet connection and the details at the top of the host file.", null],
+    ['br', window.showDirectoryPicker ? 'ok' : 'bad', 'Browser can open folders', 'Use Chrome or Edge on a computer.', null],
+    ['fo', files.length ? 'ok' : 'bad', 'Music folder chosen' + (files.length ? ' (' + files.length + ' songs)' : ''), 'Choose your music folder on the Setup tab. After a page reload you need to choose it again.', 'setup'],
+    ['n25', files.length >= 25 ? 'ok' : 'bad', 'At least 25 songs', 'Cards need 25 different songs. A playlist of 40 to 75 plays best.', 'setup'],
+    ['pr', hs.prizes.length && hs.prizes.every(p => (p.n || '').trim()) ? 'ok' : 'bad', 'Prizes set' + (hs.prizes.length ? ' (' + hs.prizes.length + ')' : ''), 'Add at least one prize, with a name, on the Setup tab.', 'setup'],
+    ['su', hs.ready ? 'ok' : 'bad', 'Game set up (cards ready)', 'Press Set up game on the Setup tab.', 'setup'],
+    ['jg', nj ? 'ok' : 'warn', nj ? 'Jingles loaded' : 'No jingles loaded', 'Optional. The built-in beeps are used instead. Choose your Sounds folder on the Setup tab.', 'setup'],
+    ['ov', view && Date.now() - view.ts < 8000 ? 'ok' : 'warn', 'Stream overlay connected', 'Optional. Press OBS overlay to open it.', 'ov'],
+    ['pl', np ? 'ok' : 'warn', np ? np + (np === 1 ? ' player' : ' players') + ' joined' : 'No players yet', 'Optional. Show the join QR code so people can join.', null]];
+  const bad = items.filter(i => i[1] === 'bad').length, warn = items.filter(i => i[1] === 'warn').length;
+  const html = '<h2>Pre-flight check</h2>' + `<div class="v ${bad ? 'no' : 'ok'}">${bad ? bad + (bad === 1 ? ' thing' : ' things') + ' to fix before you start' : 'Ready to start' + (warn ? ' (' + warn + ' optional)' : '')}</div>` +
+    items.map(([k, st, label, hint, go]) => `<div class="ck" data-ck="${k}" data-st="${st}"><span class="ci ${st}">${st === 'ok' ? '\u2713' : st === 'bad' ? '\u2717' : '!'}</span><div><b>${esc(label)}</b>${st === 'ok' ? '' : `<div class="dim">${esc(hint)}${go === 'setup' ? ' <u data-goto="setup" style="cursor:pointer;color:var(--gold)">Go to Setup</u>' : go === 'ov' ? ' <u data-goto="ov" style="cursor:pointer;color:var(--gold)">Open overlay</u>' : ''}</div>`}</div></div>`).join('');
+  if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+}
+document.addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (!g) return; if (g.dataset.goto === 'setup') showTab('setup'); else $('ob').click(); });
+setInterval(renderPre, 1000); renderPre();
 function winRows() {
   return (S ? S.winners : []).map((w, i) => { const p = S.players.find(x => x.name === w.name); return { prize: w.prize, amt: pAmt(i), name: w.name, ref: p ? p.ref || '' : '', paid: p ? !!p.paid : null, p }; });
 }

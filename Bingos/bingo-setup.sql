@@ -25,6 +25,8 @@ create unique index if not exists bingo_players_name on bingo_players (room, low
 alter table bingo_rooms add column if not exists claim_queue jsonb not null default '[]';   -- further bingo calls waiting behind the current one, in order
 alter table bingo_rooms add column if not exists claim_late uuid[] not null default '{}';   -- callers who were queued when someone else won (told they were too late)
 alter table bingo_players add column if not exists paid boolean not null default false;   -- host ticks this when the player's PayPal payment arrives
+alter table bingo_rooms add column if not exists undo jsonb;   -- snapshot taken just before the last verdict, so it can be undone for 15 seconds
+alter table bingo_players add column if not exists marks int[] not null default '{}';   -- the squares a player has ticked, so a new phone can pick up where they left off
 alter table bingo_players add column if not exists ref text;   -- the player's reference or email, to match PayPal payments (host only)
 
 alter table bingo_rooms enable row level security;
@@ -97,7 +99,7 @@ begin
   perform _bchk(p_room, p_key);
   if coalesce(array_length(p_songs, 1), 0) < 25 then raise exception 'Need at least 25 songs'; end if;
   update bingo_rooms set songs = to_jsonb(p_songs), prizes = coalesce(p_prizes, prizes), played = '{}', prize_idx = 0,
-         state = 'lobby', claim_by = null, claim_marks = null, claim_at = null, win = null, winners = '[]', claim_queue = '[]', claim_late = '{}'
+         state = 'lobby', claim_by = null, claim_marks = null, claim_at = null, win = null, winners = '[]', claim_queue = '[]', claim_late = '{}', undo = null
    where code = rc;
   delete from bingo_players where room = rc;
 end $$;
@@ -160,12 +162,16 @@ end $$;
 -- until the host continues. Bad call: caller gets a 30 second cooldown and the game carries on.
 create or replace function bingo_judge(p_room text, p_key text, p_ok boolean) returns void
 language plpgsql security definer set search_path = public as $$
-declare r bingo_rooms; p bingo_players; w jsonb; late uuid[];
+declare r bingo_rooms; p bingo_players; w jsonb; late uuid[]; snap jsonb; st text; cb uuid;
 begin
   perform _bchk(p_room, p_key);
   select * into r from bingo_rooms where code = upper(btrim(p_room)) for update;
   if r.claim_by is null then raise exception 'No bingo call to judge'; end if;
   select * into p from bingo_players where id = r.claim_by;
+  -- remember exactly how things were, so the verdict can be undone for 15 seconds (see bingo_undo)
+  snap := jsonb_build_object('at', clock_timestamp(), 'ok', p_ok, 'state', r.state, 'claim_by', r.claim_by, 'claim_marks', to_jsonb(r.claim_marks),
+    'claim_at', r.claim_at, 'queue', r.claim_queue, 'prize_idx', r.prize_idx, 'win', r.win, 'winners', r.winners, 'late', to_jsonb(r.claim_late),
+    'player', p.id, 'locked', p.locked_until, 'played', cardinality(r.played));
   if p_ok then
     -- good call: prize recorded, anyone still waiting in the queue misses out
     w := jsonb_build_object('name', p.name, 'prize', r.prizes -> r.prize_idx ->> 'n');
@@ -177,6 +183,30 @@ begin
     update bingo_players set locked_until = clock_timestamp() + interval '30 seconds' where id = p.id;
     perform _bnext(r.code);
   end if;
+  select state, claim_by into st, cb from bingo_rooms where code = r.code;
+  update bingo_rooms set undo = snap || jsonb_build_object('after_state', st, 'after_claim', cb) where code = r.code;
+end $$;
+
+-- Takes back the last verdict, within 15 seconds, as long as the game hasn't moved on (no Continue, no new song, no new caller).
+create or replace function bingo_undo(p_room text, p_key text) returns json
+language plpgsql security definer set search_path = public as $$
+declare r bingo_rooms; u jsonb;
+begin
+  perform _bchk(p_room, p_key);
+  select * into r from bingo_rooms where code = upper(btrim(p_room)) for update;
+  u := r.undo;
+  if u is null then raise exception 'Nothing to undo'; end if;
+  if clock_timestamp() - (u ->> 'at')::timestamptz > interval '15 seconds' then raise exception 'Too late to undo (15 seconds)'; end if;
+  if r.state is distinct from (u ->> 'after_state') or r.claim_by is distinct from (u ->> 'after_claim')::uuid or cardinality(r.played) <> (u ->> 'played')::int then
+    raise exception 'The game has moved on, so this can''t be undone'; end if;
+  if not exists (select 1 from bingo_players where id = (u ->> 'claim_by')::uuid) then raise exception 'That player has left, so this can''t be undone'; end if;
+  update bingo_rooms set state = u ->> 'state', claim_by = (u ->> 'claim_by')::uuid,
+         claim_marks = array(select jsonb_array_elements_text(u -> 'claim_marks')::int), claim_at = (u ->> 'claim_at')::timestamptz,
+         claim_queue = u -> 'queue', prize_idx = (u ->> 'prize_idx')::int, win = case when u -> 'win' = 'null'::jsonb then null else u -> 'win' end,
+         winners = u -> 'winners', claim_late = array(select jsonb_array_elements_text(u -> 'late')::uuid), undo = null
+   where code = r.code;
+  update bingo_players set locked_until = (u ->> 'locked')::timestamptz where id = (u ->> 'player')::uuid;
+  return json_build_object('ok', true, 'was', case when (u ->> 'ok')::boolean then 'valid' else 'not valid' end);
 end $$;
 
 -- Host removes one player. If they were the one calling bingo, the call is cleared and the game carries on.
@@ -232,16 +262,30 @@ drop function if exists bingo_join(text, text);   -- replaced by the version bel
 create or replace function bingo_join(p_room text, p_name text, p_ref text default null) returns json
 language plpgsql security definer set search_path = public as $$
 declare t bingo_players; n text := left(btrim(coalesce(p_name, '')), 24); rc text := upper(btrim(coalesce(p_room, '')));
+        rf text := left(nullif(btrim(coalesce(p_ref, '')), ''), 80);
 begin
   if n = '' then raise exception 'Enter your name'; end if;
   if not exists (select 1 from bingo_rooms where code = rc) then raise exception 'Room not found'; end if;
   begin
-    insert into bingo_players (room, name, ref) values (rc, n, left(nullif(btrim(coalesce(p_ref, '')), ''), 80)) returning * into t;
+    insert into bingo_players (room, name, ref) values (rc, n, rf) returning * into t;
   exception when unique_violation then
-    raise exception 'That name is already taken';
+    -- the name is taken. If it's the same person on a new phone (same name AND the same reference or email), hand them their card back.
+    select * into t from bingo_players where room = rc and lower(name) = lower(n);
+    if t.ref is null or rf is null or lower(t.ref) <> lower(rf) then
+      raise exception 'That name is already taken. If this is you on a new phone, enter the same reference or email you used before.';
+    end if;
+    update bingo_players set secret = gen_random_uuid(), last_seen = clock_timestamp() where id = t.id returning * into t;   -- the old phone is signed out
   end;
   perform _bdeal(t.id);
   return json_build_object('id', t.id, 'secret', t.secret, 'name', t.name);
+end $$;
+
+-- A player's phone saves which squares they have ticked, so a new phone (or a reload) can restore them.
+create or replace function bingo_set_marks(p_room text, p_player uuid, p_secret uuid, p_marks int[]) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  update bingo_players set marks = coalesce((select array_agg(distinct x order by x) from unnest(p_marks) x where x between 0 and 24), '{}')
+   where id = p_player and room = upper(btrim(p_room)) and secret = p_secret;
 end $$;
 
 -- A player says "bingo" and sends the squares (0-24) they have marked. Everything stops until the host judges.
@@ -293,7 +337,7 @@ begin
     'mine_call', coalesce(r.claim_by = p_player, false),
     'queued', case when ok then coalesce((select e.o from jsonb_array_elements(r.claim_queue) with ordinality e(q, o) where e.q ->> 'p' = p_player::text), 0) else 0 end,
     'late', case when ok then coalesce(p_player = any(r.claim_late), false) else false end,
-    'me', case when ok then json_build_object('valid', true, 'name', p.name,
+    'me', case when ok then json_build_object('valid', true, 'name', p.name, 'marks', to_json(p.marks),
             'card', (select json_agg(r.songs ->> c order by o) from unnest(p.card) with ordinality t(c, o)),
             'cool', greatest(0, round(extract(epoch from (p.locked_until - clock_timestamp())) * 1000)))
           else json_build_object('valid', false) end);

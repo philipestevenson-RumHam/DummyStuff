@@ -32,6 +32,7 @@ create table if not exists answers (
   points       int not null default 0,
   primary key (room, qkey, team_id)
 );
+alter table answers add column if not exists opened_at timestamptz;
 
 -- Added later: question text, answer text and a synced timer (safe to re-run).
 alter table rooms add column if not exists qtext text;
@@ -390,7 +391,7 @@ begin
   -- The answer time is the time of the LAST new tap.
   if r.qtype = 'multisel' then
     if r.state <> 'open' then raise exception 'Answers are closed'; end if;
-    insert into answers (room, qkey, team_id, letter) values (r.code, r.qkey, p_team, l)
+    insert into answers (room, qkey, team_id, letter, opened_at) values (r.code, r.qkey, p_team, l, r.opened_at)
     on conflict (room, qkey, team_id) do update set
       letter = case when l = any(string_to_array(answers.letter, ','))
                     then answers.letter
@@ -407,7 +408,7 @@ begin
   if found then return json_build_object('ok', false, 'locked', true, 'letter', a.letter); end if;
   if r.state <> 'open' then raise exception 'Answers are closed'; end if;
 
-  insert into answers (room, qkey, team_id, letter) values (r.code, r.qkey, p_team, l)
+  insert into answers (room, qkey, team_id, letter, opened_at) values (r.code, r.qkey, p_team, l, r.opened_at)
     on conflict do nothing returning * into a;
   if not found then
     select * into a from answers where room = r.code and qkey = r.qkey and team_id = p_team;
@@ -593,4 +594,26 @@ end $$;
 
 -- ---------- version marker (the Test connection button compares this with the host page) ----------
 create or replace function app_version() returns text
-language sql immutable as $$ select '2026-10-16'::text $$;
+language sql immutable as $$ select '2026-10-17'::text $$;
+
+-- ---------- everything that happened, for the results CSV ----------
+create or replace function host_results(p_room text, p_key text) returns json
+language plpgsql security definer set search_path = public as $$
+declare r rooms;
+begin
+  perform _chk(p_room, p_key);
+  select * into r from rooms where code = upper(btrim(p_room));
+  return json_build_object(
+    'done', r.done, 'voided', r.voided, 'qkey', r.qkey,
+    'teams', (select coalesce(json_agg(json_build_object('id', t.id, 'name', t.name, 'joined', t.joined_at, 'total', _tot(t.id)) order by t.joined_at), '[]'::json)
+                from teams t where t.room = r.code),
+    'answers', (select coalesce(json_agg(json_build_object(
+                  'team', a.team_id, 'q', a.qkey, 'v', case when a.blank then null else a.letter end, 'ok', a.correct,
+                  'bonus', a.bonus, 'pts', a.points,
+                  'ms', case when a.blank or a.opened_at is null then null
+                             else round(extract(epoch from (a.submitted_at - a.opened_at)) * 1000) end)), '[]'::json)
+                  from answers a where a.room = r.code),
+    'adjustments', (select coalesce(json_agg(json_build_object('team', j.team_id, 'kind', j.kind, 'delta', j.delta, 'q', j.qkey) order by j.created_at), '[]'::json)
+                      from adjustments j where j.room = r.code)
+  );
+end $$;

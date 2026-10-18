@@ -245,6 +245,13 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 .tctl{display:flex;gap:8px;margin-bottom:6px}.tctl .tq{flex:1;margin-bottom:0}.tctl .tsort{width:9.5em;margin-bottom:0}
 .tr{margin:4px 0;font-weight:700}.tr.ok{color:#067647}.tr.bad{color:#b42318}
 .ht .bzr{margin-top:4px}
+#homeModal .hbox{width:min(1040px,94vw);max-width:none}
+.lvcols{display:grid;grid-template-columns:1fr 1fr;gap:6px 28px}.lvl,.lvr{min-width:0}.lvr .dz{margin-top:10px}
+@media(max-width:860px){.lvcols{grid-template-columns:1fr}.lvr .dz{margin-top:16px}}
+#homeTeams{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:0 28px}
+@media(max-width:560px){#homeTeams{grid-template-columns:1fr}}
+.tctl .tq{max-width:420px}
+.chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#050505;margin:4px 0 6px}
 </style>
 </head>
 <body>
@@ -467,7 +474,7 @@ function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=
 function keepRev(){justRevealed=false;if(home.live){revealed=false;return}if(revealed)completed.add(roundIndex+'-'+qIndex)}
 function goQ(i){qIndex=i;keepRev();render()}
 function publicReveal(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live){home.qShown=true;home.kpShown=true;homeReveal()}if(!revealed)home.showRes=false;if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
-function nextQ(){if(home.live&&view==='quiz'&&!isVoidNow()){if(!home.kpShown){homeKpShow();return}if(!home.qShown){homeQShow(true);return}if(!revealed){publicReveal();return}if(DESK&&!home.showRes){homeShowResults();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else openScores(roundIndex)}
+function nextQ(){if(home.live&&view==='quiz'&&!isVoidNow()){if(!home.kpShown){homeKpShow();return}if(!home.qShown){homeQShow(true);return}if(!revealed){publicReveal();return}if(DESK&&!home.showRes){homeShowResults();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else{openScores(roundIndex);homeAutoImport(roundIndex)}}
 function previousQ(){if(qIndex>0){qIndex--;keepRev();render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
@@ -623,6 +630,7 @@ function renderScore(){
  const chips=R.map((x,i)=>`<button class="schip ${i===scoreR?'on':''} ${scores[i]?'has':''}" onclick="openScores(${i})" aria-label="Round ${esc(x.number)} scores">R${esc(x.number)}</button>`).join('')+`<button class="schip ${fin?'on':''}" onclick="openScores(${R.length})">Final</button>`;
  const cov=!fin&&from<scoreR?`<span class="pill cov">Covers Rounds ${esc(R[from].number)}\u2013${esc(r.number)}</span>`:'';
  const im=DESK?'decimal':'none';
+ const imp=home.live&&home.impMsg&&home.impR===scoreR&&!fin?`<span class="pill cov">${esc(home.impMsg)}</span>`:'';
  const tc=`<div class="tcl">Teams <button type="button" class="stp" data-team="-1" aria-label="Fewer teams">\u2212</button><input id="tcount" type="number" min="1" max="30" inputmode="${DESK?'numeric':'none'}" value="${teams}" onchange="setTeams(this.value)"><button type="button" class="stp" data-team="1" aria-label="More teams">+</button></div>`;
  const obsBtn=(f)=>DESK?`<button class="control reveal" onclick="${on?'hideScoreObs()':'showScoreObs('+f+')'}">${on?'HIDE FROM OBS':f?'SHOW FINAL ON OBS':'SHOW ON OBS'}</button>`:'';
  let h,body,ctl;
@@ -635,7 +643,7 @@ function renderScore(){
   body=`<div class="sgrid" style="--r:${lay.r};--c:${lay.c}">`+Array.from({length:teams},(_,t)=>{const v=ent&&ent.v[t]!=null?ent.v[t]:'';return `<div class="srow" id="sr${t}"><span class="sn">${esc(tn(t))}</span><button type="button" class="stp" data-t="${t}" data-d="-1" aria-label="Team ${t+1} minus">\u2212</button><input class="sin" type="text" inputmode="${im}" enterkeyhint="next" autocomplete="off" data-t="${t}" value="${v}" aria-label="Team ${t+1} points"><button type="button" class="stp" data-t="${t}" data-d="1" aria-label="Team ${t+1} plus">+</button><span class="stot"></span><span class="srank"></span></div>`}).join('')+'</div>';
   ctl=`<button class="control" onclick="backFromScores()">\u2190 PREVIOUS</button><button class="control" onclick="afterScores()">SKIP SCORES</button>${home.live?'<button class="control" onclick="homeImport()">IMPORT HOME</button>':''}${obsBtn(false)}<button class="control primary" onclick="afterScores()">${last?'FINISH &#10003;':'NEXT ROUND \u2192'}</button>`;
  }
- document.getElementById('content').innerHTML=`<div class="sc"><div class="rhead"><h1>${h}</h1></div><div class="sbar">${chips}${cov}${tc}</div>${body}<div class="controls">${ctl}</div></div>`;
+ document.getElementById('content').innerHTML=`<div class="sc"><div class="rhead"><h1>${h}</h1></div><div class="sbar">${chips}${cov}${imp}${tc}</div>${body}<div class="controls">${ctl}</div></div>`;
  if(!fin)updScore()}
 (function(){const c=document.getElementById('content');
  c.addEventListener('input',e=>{const el=e.target;if(!el.classList||!el.classList.contains('sin'))return;
@@ -850,7 +858,7 @@ async function homeCopyLink(){const u=playerLink();try{await navigator.clipboard
 function homeTq(v){home.tq=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
 function homeTsort(v){home.tsort=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
 function homeAdjTeam(id){closeHome();adj.kind='gift';adj.to=id;adj.from='';openAdj()}
-const DB_VERSION='2026-10-16';
+const DB_VERSION='2026-10-17';
 async function homeTestConn(){const el=document.getElementById('homeTest'),c=home.cfg;if(!el)return;
  if(!c.url||!c.key){el.innerHTML='<p class="tr bad">Enter the project URL and key first.</p>';return}
  el.innerHTML='<p class="note">Testing\u2026</p>';
@@ -860,7 +868,7 @@ async function homeTestConn(){const el=document.getElementById('homeTest'),c=hom
   ['submit_answer',{p_room:R,p_team:U,p_secret:U,p_letter:'A'}],['get_state',{p_room:R,p_team:null,p_secret:null}],['set_timer',{...P,p_state:'idle',p_left:0}],['set_phase',{...P,p_phase:'contents',p_info:{}}],
   ['set_qshow',{...P,p_show:true}],['set_kpshow',{...P,p_show:true}],['clear_answers',P],['clear_teams',P],['clear_question',{...P,p_qkey:'0-0'}],
   ['host_adjust',{...P,p_kind:'gift',p_from:null,p_to:U,p_pts:1,p_qkey:'0-0'}],['host_adjustments',P],['host_undo_adjust',{...P,p_pair:U}],
-  ['void_question',{...P,p_qkey:'0-0'}],['unvoid_question',{...P,p_qkey:'0-0'}],['delete_room',P],['create_room',{p_code:null,p_key:null}]];
+  ['void_question',{...P,p_qkey:'0-0'}],['host_results',P],['unvoid_question',{...P,p_qkey:'0-0'}],['delete_room',P],['create_room',{p_code:null,p_key:null}]];
  let unreachable=false,keyBad=false,ver=null;const missing=[];
  await Promise.all(probes.map(async([fn,args])=>{try{const r=await rpc(fn,args);if(fn==='app_version')ver=r}catch(e){const m=String(e.message||e);
    if(/Failed to fetch|NetworkError|Load failed/i.test(m))unreachable=true;else if(/Invalid API key|apikey|JWT/i.test(m))keyBad=true;else if(/Could not find the function|PGRST202/i.test(m))missing.push(fn)}}));
@@ -881,18 +889,19 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||(L?'live':'setup'
  let body;
  if(t==='live'){
   body=!L?noRoom+'<div class="modal-actions" style="justify-content:flex-start"><button class="close" onclick="homeTab(\'setup\')">Go to Setup</button></div>':
-  `<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div>
+  `<div class="lvcols"><div class="lvl"><div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div>
   <div class="hl">Player link</div><div class="lvlink"><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><button class="close" onclick="homeCopyLink()">Copy</button></div>
   <div id="liveInfo">${liveInfoHTML()}</div>
   <div class="hl" style="margin-top:14px">Quick actions</div>
-  <div class="qa">${DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):''}<button class="close" onclick="closeHome();toggleLiveScores()">${obsLive?'Hide scores on OBS':'Scores on OBS'}</button><button class="close" onclick="closeHome();openAdj()">Adjust scores&hellip;</button><button class="close" onclick="homeClear('q')">Clear this question</button></div>
-  ${voidControls()}
+  <div class="qa">${DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):''}<button class="close" onclick="closeHome();toggleLiveScores()">${obsLive?'Hide scores on OBS':'Scores on OBS'}</button><button class="close" onclick="closeHome();openAdj()">Adjust scores&hellip;</button><button class="close" onclick="homeClear('q')">Clear this question</button></div><label class="chk"><input type="checkbox" ${home.cfg.autoImport===false?'':'checked'} onchange="homeAutoSet(this.checked)"> Auto-import scores at the end of each round</label>
+  <div class="hl" style="margin-top:12px">Results</div><div class="qa"><button class="close" onclick="homeExportResults()">Results CSV (every answer)</button><button class="close" onclick="homeExportStandings()">Standings CSV</button></div></div>
+  <div class="lvr">${voidControls()}
   <div class="dz"><div class="hl dzh">Danger zone</div>
   ${row("homeClear('all')",'Clear all answers and points','Starts the scoring from zero. Teams stay in the room.','danger')}
   ${row("homeClear('teams')",'Remove all teams','Everyone has to join again. The room code stays the same.','danger')}
   ${row("homeNewRoom()",'Start a new room','Deletes this room and creates a fresh one with a new code.','danger')}
   ${row("homeStop()",'Stop &amp; delete room','Ends home play and deletes the room, its teams and its points.','danger')}
-  ${row("resetProgress()",'Reset quiz progress and scores','This device only: clears the Scores slide, imported team names and which questions are done.','danger')}</div>`;
+  ${row("resetProgress()",'Reset quiz progress and scores','This device only: clears the Scores slide, imported team names and which questions are done.','danger')}</div></div></div>`;
  }else if(t==='players'){
   const so=home.tsort||'joined',op=(v,l)=>`<option value="${v}" ${so===v?'selected':''}>${l}</option>`;
   body=L?`<div class="tctl"><input class="hin tq" id="tq" placeholder="Search teams&hellip;" value="${esc(home.tq||'')}" oninput="homeTq(this.value)"><select class="hin tsort" onchange="homeTsort(this.value)">${op('joined','Joined order')}${op('name','Name')}${op('points','Points')}${op('conn','Connection')}</select></div>
@@ -931,7 +940,7 @@ async function homeClear(kind){
  }catch(e){m.textContent=e.message;return}
  revealed=false;home.err='';home.openedQ=kind==='q'?qKeyNow():null;if(kind==='q')tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};m.textContent='Done.';
  renderRounds();render();if(kind!=='q')homeSync();homeTimer();homePoll()}
-async function homeNewRoom(){if(!confirm('Delete this room and start a new one with a new code?'))return;
+async function homeNewRoom(){await homeOfferExport();if(!confirm('Delete this room and start a new one with a new code?'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';home.live=false;home.st=null;home.openedQ=null;home.acc={};home.tab='setup';await homeStart()}
 function homeField(k,v){home.cfg[k]=String(v).trim();homeSave()}
@@ -942,7 +951,7 @@ async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg')
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
  homeSave();bzAssignLoad();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='live';homeRender();homePoll();homeSync();render()}
-async function homeStop(){if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
+async function homeStop(){await homeOfferExport();if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;home.tab='setup';homeRender();render()}
 function homeTeam(id,ren){let name=null;if(ren){name=prompt('New team name');if(name==null||!name.trim())return}else if(!confirm('Remove this team?'))return;
@@ -952,13 +961,16 @@ document.body.insertAdjacentHTML('beforeend','<div id="joinChip" style="display:
 function joinChipUpd(){const c=document.getElementById('joinChip');if(c)c.style.display=joinOn()?'flex':'none'}
 function homeShowJoin(){closeHome();if(!(obs&&!obs.closed))toggleOBS();if(!obs)return;obsScore={join:true};obsLast='';obsSync(false);joinChipUpd()}
 function homeHideJoin(){obsScore=null;obsLast='';obsSync(false);joinChipUpd();if(!document.getElementById('homeModal').classList.contains('hidden'))homeRender()}
-async function homeImport(){let rs;try{rs=await rpc('host_rounds',hk())}catch(e){alert(e.message);return}
- if(!rs.length){alert('No home teams have joined yet.');return}
- if(rs.length>30)alert('Only the first 30 teams can be shown.');
+async function homeImport(auto){const sr=scoreR;let rs;try{rs=await rpc('host_rounds',hk())}catch(e){if(!auto)alert(e.message);return}
+ if(!rs.length){if(!auto)alert('No home teams have joined yet.');return}
+ if(rs.length>30&&!auto)alert('Only the first 30 teams can be shown.');
  rs=rs.slice(0,30);teams=rs.length;names=rs.map(x=>x.name);
- const from=scores[scoreR]?scores[scoreR].from:fromOf(scoreR),en=scores[scoreR]={from,v:Array(30).fill(null)};
- rs.forEach((x,t)=>{let sum=0;for(let i=from;i<=scoreR;i++)sum+=+((x.rounds||{})[String(i)]||0);en.v[t]=sum});
+ const from=scores[sr]?scores[sr].from:fromOf(sr),en=scores[sr]={from,v:Array(30).fill(null)};
+ rs.forEach((x,t)=>{let sum=0;for(let i=from;i<=sr;i++)sum+=+((x.rounds||{})[String(i)]||0);en.v[t]=sum});
+ if(auto===true){home.impR=sr;home.impMsg='Imported from Home Play automatically'+(rs.length>=30?' (first 30 teams)':'')}else home.impMsg='';
  saveSoon();renderRounds();render()}
+async function homeAutoImport(r){if(!home.live||home.cfg.autoImport===false||scores[r])return;await homeImport(true)}
+function homeAutoSet(v){home.cfg.autoImport=!!v;homeSave()}
 /* ===== Video questions (Image File = an .mp4 etc). Plays on the host with sound; the OBS copy follows it, muted. ===== */
 const VEXT=/\.(mp4|webm|mov|m4v|ogv)$/i,VMIME={mp4:'video/mp4',m4v:'video/mp4',webm:'video/webm',mov:'video/quicktime',ogv:'video/ogg'};
 const isVid=(M,n)=>!!(n&&M&&M[n]&&(String(M[n]).slice(0,11)==='data:video/'||VEXT.test(n)));
@@ -1085,6 +1097,37 @@ async function homeUnvoid(k){const m=document.getElementById('homeMsg');
  home.voidQ.delete(k);
  if(view==='quiz'&&k===qKeyNow()){home.qShown=false;home.kpShown=false;revealed=false;home.showRes=false;render()}
  await homePoll();render();homeRender();document.getElementById('homeMsg').textContent='Un-voided. That question will run again from Show keypad.'}
+/* ===== Results CSV ===== */
+const csvCell=v=>{v=v==null?'':String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+const csvText=rows=>'\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+function csvDownload(name,rows){const b=new Blob([csvText(rows)],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800)}
+const csvName=kind=>String(quiz.title||'quiz').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')+'-'+kind+'-'+(home.cfg.code||'room')+'-'+new Date().toISOString().slice(0,10)+'.csv';
+function csvAnsText(q,v){if(v==null||v==='')return '';const t=qTypeOf(q),o=optsOf(q);
+ if(t==='multi')return o[+v]!=null?o[+v]:v;if(t==='multisel')return String(v).split(',').map(i=>o[+i]!=null?o[+i]:i).join(' + ');if(t==='sort')return String(v).split(',').map(i=>o[+i]!=null?o[+i]:i).join(' > ');if(t==='letter')return v==='X'?'X/Y':v;return v}
+function qByKey(k){const [ri,qi]=String(k).split('-').map(Number),r=quiz.rounds[ri];return r&&r.questions[qi]?{r,q:r.questions[qi],ri,qi}:null}
+function buildResultRows(d){
+ const T=d.teams||[],tn_=Object.fromEntries(T.map(t=>[t.id,t.name])),byQ={};
+ (d.answers||[]).forEach(a=>{(byQ[a.q]=byQ[a.q]||{})[a.team]=a});
+ const keys=[...new Set([...(d.done||[]),...(d.voided||[]),...Object.keys(byQ)])].filter(k=>qByKey(k)).sort((a,b)=>{const x=a.split('-').map(Number),y=b.split('-').map(Number);return x[0]-y[0]||x[1]-y[1]});
+ const rows=[['Team','Round','Round title','Question no','Question','Answer','QAnswer','Their answer','Result','Response time (s)','Speed bonus','Points']];
+ keys.forEach(k=>{const f=qByKey(k),voidQ=(d.voided||[]).includes(k),base=[f.r.number,f.r.title||'',f.q.number||f.qi+1,f.q.question||'',f.q.answer==null?'':f.q.answer,f.q.qanswer==null?'':f.q.qanswer];
+  if(voidQ){rows.push(['(all teams)',...base,'','VOID','','','0']);return}
+  T.forEach(t=>{const a=(byQ[k]||{})[t.id],none=!a||a.v==null,res=none?'No answer':a.ok===true?'Correct':'Wrong';
+   rows.push([t.name,...base,none?'':csvAnsText(f.q,a.v),res,a&&a.ms!=null?(a.ms/1000).toFixed(2):'',a?a.bonus||0:0,a?a.pts||0:0])})});
+ const lab={gift:'Gift',steal:'Steal',fasttrack:'Fast track'};
+ (d.adjustments||[]).forEach(j=>{const f=j.q&&qByKey(j.q);rows.push([tn_[j.team]||'?',f?f.r.number:'',f?f.r.title||'':'',f?f.q.number||f.qi+1:'','(adjustment)','','','',lab[j.kind]||j.kind,'','',j.delta])});
+ return rows}
+function buildStandingRows(d){
+ const T=d.teams||[],R=quiz.rounds,rp={},adj={};
+ (d.answers||[]).forEach(a=>{const ri=String(a.q).split('-')[0];(rp[a.team]=rp[a.team]||{})[ri]=((rp[a.team]||{})[ri]||0)+(a.pts||0)});
+ (d.adjustments||[]).forEach(j=>{adj[j.team]=(adj[j.team]||0)+j.delta});
+ const rows0=T.map(t=>({n:t.name,total:t.total,id:t.id})).sort((a,b)=>b.total-a.total||a.n.localeCompare(b.n));let p=0;rows0.forEach((x,i)=>{if(i===0||x.total!==rows0[i-1].total)p=i+1;x.p=p});
+ const rows=[['Place','Team','Total points',...R.map(r=>'Round '+r.number+' points'),'Gifts, steals and fast track']];
+ rows0.forEach(x=>rows.push([x.p,x.n,x.total,...R.map((r,i)=>(rp[x.id]||{})[String(i)]||0),adj[x.id]||0]));return rows}
+async function homeExportResults(){try{const d=await rpc('host_results',hk());csvDownload(csvName('results'),buildResultRows(d));bzMsg('Results CSV downloaded.')}catch(e){bzMsg(e.message)}}
+async function homeExportStandings(){try{const d=await rpc('host_results',hk());csvDownload(csvName('standings'),buildStandingRows(d));bzMsg('Standings CSV downloaded.')}catch(e){bzMsg(e.message)}}
+async function homeExportAll(){try{const d=await rpc('host_results',hk());csvDownload(csvName('night-report'),[['STANDINGS'],...buildStandingRows(d),[],['ALL ANSWERS'],...buildResultRows(d)]);return true}catch(e){bzMsg(e.message);return false}}
+async function homeOfferExport(){if(confirm('Download the night\'s results before this room is deleted?\n\nOK = download one CSV with the standings and every answer.\nCancel = skip.'))await homeExportAll()}
 bzLoad();
 init();
 </script>
