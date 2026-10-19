@@ -104,7 +104,7 @@ async function rpc(fn, args) {
   return j;
 }
 
-let sortFly = false, flying = false, me = null, timer = 0, errs = 0, sig = '', lastS = null, pend = null, pendQ = null;
+let sortFly = false, ivS = { left: 0, at: 0 }, flying = false, me = null, timer = 0, errs = 0, sig = '', lastS = null, pend = null, pendQ = null;
 try { me = JSON.parse(localStorage.getItem('rh_team') || 'null'); } catch (e) {}
 const wantRoom = (Q.get('r') || '').toUpperCase();
 if (me && wantRoom && me.room !== wantRoom) me = null;
@@ -203,14 +203,17 @@ function draw(s) {
   if (s.qkey !== msQ) { msQ = s.qkey; msPend = new Set(); }
   if (msFly === 0) msPend = new Set();
   const picked = new Set(String(m.letter || '').split(',').filter(x => x !== '').concat([...msPend]));
-  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null), s.kphidden, s.void].join('|');
+  const key = [s.state, s.qkey, L, m.ok, m.points, m.bonus, m.total, m.rank, m.ms, s.q, s.a, s.qtype, opts.join('~'), s.phase, JSON.stringify(s.pinfo || null), JSON.stringify(s.evil || null), [...picked].join('+'), seq.join('>'), s.qhidden, s.fast, JSON.stringify(s.ft || null), s.kphidden, s.void, s.interval].join('|');
   if (key === sig) return; sig = key;
 
   const qc = s.q ? `<div class="qc">${esc(s.q)}</div>` : (s.qhidden ? '<div class="qc hold">' + (s.kphidden ? 'Get ready&hellip;' : 'Get ready&hellip; the question is coming up') + '</div>' : '');
   const lock = l => `<div class="lock ${isNum ? 'num' : isMulti ? 'opt' : l === 'X' ? 'xy' : ''}">${esc(isNum ? l : isMulti ? (opts[+l] || '?') : showL(l))}</div>`;
   const secs = m.ms != null ? (m.ms / 1000).toFixed(2) + 's' : '';
   let body, lay = '';
-  if (s.void) {
+  if (s.interval) {
+    ivS = { left: +s.interval_left || 0, at: performance.now() };
+    body = `<div class="cap">Interval</div><div class="big3" id="ivt">&hellip;</div><div class="sub">Back shortly. Please stay on this page.</div>`;
+  } else if (s.void) {
     body = `<div class="cap voidcap">Question void</div><div class="sub">This question has been voided.<br>No points were scored or lost.</div>${qc}`;
   } else if (s.state === 'open') {
     lay = ' qlayout';
@@ -238,6 +241,8 @@ function draw(s) {
 }
 
 function tickTimer() {
+  const iv = $('ivt');
+  if (iv && lastS && lastS.interval) { const rem = Math.max(0, ivS.left - (performance.now() - ivS.at)), mm = Math.floor(rem / 60000), ss = Math.floor((rem % 60000) / 1000); iv.textContent = rem <= 0 ? 'Starting soon' : mm + ':' + String(ss).padStart(2, '0'); }
   const el = $('tmr'); if (!el) return;
   let t = '', c = 'tm'; const st = tmr.state;
   if (st === 'run') {

@@ -252,6 +252,9 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 @media(max-width:560px){#homeTeams{grid-template-columns:1fr}}
 .tctl .tq{max-width:420px}
 .chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#050505;margin:4px 0 6px}
+#ivChip{position:fixed;top:104px;left:50%;transform:translateX(-50%);z-index:60;align-items:center;gap:12px;background:#0b1f4d;border:2px solid #20C7D9;border-radius:999px;padding:6px 8px 6px 18px;color:#fff;font-weight:900;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+#ivChip button{background:#20C7D9;color:#050505;border-radius:999px;padding:6px 16px;font-weight:900}
+.ivrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;color:#050505;font-weight:700}.ivrow .hin{width:5.5em;margin:0}
 </style>
 </head>
 <body>
@@ -393,7 +396,7 @@ setInterval(()=>{if(tm.s!=='run')return;if(tmrLeft()<=0){tm.s='done';tm.left=0;h
 let lastRK='';
 function render(){const jr=justRevealed;
  const rk=view+'|'+roundIndex+'|'+(view==='quiz'?qIndex:view==='score'?'s'+scoreR:'');const chg=rk!==lastRK;
- if(chg){lastRK=rk;vidStop();obsScore=null;home.showRes=false;home.qShown=false;home.kpShown=false;hostPeek=false;homeSync();tm={s:'idle',left:tmrMs(),end:0};if(autoTimer&&!noAuto&&!home.live&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};homeTimer()}
+ if(chg){lastRK=rk;vidStop();obsScore=null;home.showRes=false;home.showBrk=false;home.qShown=false;home.kpShown=false;hostPeek=false;homeSync();tm={s:'idle',left:tmrMs(),end:0};if(autoTimer&&!noAuto&&!home.live&&view==='quiz'&&!revealed&&!completed.has(roundIndex+'-'+qIndex))tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};homeTimer()}
  renderMain();
  if(chg){const c=document.getElementById('content');c.classList.remove('enter');void c.offsetWidth;c.classList.add('enter');clearTimeout(render.t);render.t=setTimeout(()=>c.classList.remove('enter'),view==='quiz'?300:1300)}
  obsSync(jr);saveSoon()}
@@ -473,8 +476,8 @@ function showQuiz(){view=entered?'quiz':'round';entered=true;renderRounds();rend
 function openRound(i){roundIndex=i;qIndex=0;revealed=false;view='round';entered=true;renderRounds();render()}
 function keepRev(){justRevealed=false;if(home.live){revealed=false;return}if(revealed)completed.add(roundIndex+'-'+qIndex)}
 function goQ(i){qIndex=i;keepRev();render()}
-function publicReveal(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live){home.qShown=true;home.kpShown=true;homeReveal()}if(!revealed)home.showRes=false;if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
-function nextQ(){if(home.live&&view==='quiz'&&!isVoidNow()){if(!home.kpShown){homeKpShow();return}if(!home.qShown){homeQShow(true);return}if(!revealed){publicReveal();return}if(DESK&&!home.showRes){homeShowResults();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else{openScores(roundIndex);homeAutoImport(roundIndex)}}
+function publicReveal(){revealed=!revealed;justRevealed=revealed;completed.add(roundIndex+'-'+qIndex);if(revealed&&home.live){home.qShown=true;home.kpShown=true;homeReveal()}if(!revealed)home.showRes=false;home.showBrk=false;if(revealed&&tm.s==='run'){tm.left=tmrLeft();tm.s='pause'}homeTimer();renderRounds();render()}
+function nextQ(){if(home.live&&view==='quiz'&&!isVoidNow()){if(!home.kpShown){homeKpShow();return}if(!home.qShown){homeQShow(true);return}if(!revealed){publicReveal();return}if(DESK&&!home.showRes){homeShowResults();return}if(DESK&&home.cfg.breakdown!==false&&!home.showBrk){homeShowBreak();return}}const R=quiz.rounds;if(qIndex<R[roundIndex].questions.length-1){qIndex++;keepRev();render()}else{openScores(roundIndex);homeAutoImport(roundIndex)}}
 function previousQ(){if(qIndex>0){qIndex--;keepRev();render()}}
 const FSel=document.documentElement,FSon=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function toggleFS(){try{if(FSon()){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}else{(FSel.requestFullscreen||FSel.webkitRequestFullscreen).call(FSel)}}catch(e){}}
@@ -546,7 +549,7 @@ function toggleOBS(){
  obsBtnUpd();obsSync(false)}
 function obsSync(jr){joinChipUpd();if(!obs)return;if(obs.closed){obs=null;obsLive=false;obsBtnUpd();return}
  const st=obs.document.getElementById('stage');if(!st||!quiz)return;
- const h=obsHTML(jr);if(obsScore||obsLive||(home.live&&view==='quiz'&&home.showRes)){if(h===obsLast)return;obsLast=h}else obsLast='';st.innerHTML=h;obsMountVideo(st);obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
+ const h=obsHTML(jr);if(obsScore||obsLive||(home.live&&view==='quiz'&&(home.showRes||home.showBrk))){if(h===obsLast)return;obsLast=h}else obsLast='';st.innerHTML=h;obsMountVideo(st);obs.requestAnimationFrame(()=>fitText(obs.document,obs.innerHeight))}
 setInterval(()=>{if(obs&&obs.closed){obs=null;obsLive=false;obsBtnUpd()}},1000);
 addEventListener('beforeunload',()=>{if(obs&&!obs.closed)obs.close()});
 function openImporter(){document.getElementById('importModal').classList.remove('hidden')}
@@ -584,6 +587,18 @@ const OBS_CSS2=`.sbT{font:calc(var(--u)*92)/1 var(--d);color:#FFD90E;text-transf
 .rsE{font:calc(var(--u)*60)/1 var(--d);color:#b9c6da;align-self:center}
 @keyframes rsin{from{transform:translateY(calc(var(--u)*60));opacity:0}to{transform:none;opacity:1}}
 .vd{font:calc(var(--u)*200)/1 var(--d);color:#ff5d5d;letter-spacing:.04em;margin-top:calc(var(--u)*30)}.hd2{font:calc(var(--u)*56)/1 var(--d);color:#b9c6da;margin-top:calc(var(--u)*30)}
+.ivh{font:calc(var(--u)*120)/1 var(--d);color:#20C7D9;letter-spacing:.12em;margin-top:calc(var(--u)*24)}
+.ivt{font:calc(var(--u)*340)/1 var(--d);color:#FFD90E;letter-spacing:.04em;margin-top:calc(var(--u)*10)}
+.ivs{font:calc(var(--u)*64)/1 var(--d);color:#fff;letter-spacing:.08em;margin-top:calc(var(--u)*10)}
+.bkG{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:calc(var(--u)*14);margin-top:calc(var(--u)*18)}
+.bkR{display:grid;grid-template-columns:calc(var(--u)*600) 1fr calc(var(--u)*110);align-items:center;gap:calc(var(--u)*24);height:calc(var(--u)*76)}
+.bkL{font:calc(var(--u)*46)/1 var(--d);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.bkB{background:rgba(255,255,255,.1);border-radius:calc(var(--u)*14);height:100%;overflow:hidden}
+.bkB i{display:block;height:100%;background:#7c8aa5;border-radius:calc(var(--u)*14);animation:bkgrow .9s both}
+.bkR.ok .bkB i{background:#2ecc71}.bkR.ok .bkL{color:#7dffb0}
+.bkN{font:calc(var(--u)*58)/1 var(--d);color:#FFD90E}
+.bkF{font:calc(var(--u)*38)/1 var(--d);color:#b9c6da;text-align:center;flex-shrink:0;margin-top:calc(var(--u)*10)}
+@keyframes bkgrow{from{width:0}}
 .hd{display:flex;gap:calc(var(--u)*20);align-items:center;justify-content:center;margin-top:calc(var(--u)*30)}
 .gr{font:calc(var(--u)*100)/1 var(--d);color:#FFD90E;letter-spacing:.1em;margin-top:calc(var(--u)*50);animation:grp 1.6s ease-in-out infinite}@keyframes grp{50%{opacity:.35}}
 .devs .ftp{display:inline-flex;align-items:center;gap:calc(var(--u)*8);background:#FFD90E;color:#050505;border-radius:999px;padding:calc(var(--u)*8) calc(var(--u)*26);font:calc(var(--u)*34)/1 var(--d)}.bolt{height:1em;width:1em;flex-shrink:0}
@@ -671,7 +686,7 @@ function stopHold(){clearTimeout(holdT);clearInterval(holdI)}
  c.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.stp'))e.preventDefault()});
 })();
 /* ===== Play at home (Supabase) ===== */
-const home={voidQ:new Set(),kpShown:false,qShown:false,showRes:false,live:false,cfg:{},st:null,err:'',openedQ:null,chain:Promise.resolve(),busy:false,acc:{}};
+const home={showBrk:false,voidQ:new Set(),kpShown:false,qShown:false,showRes:false,live:false,cfg:{},st:null,err:'',openedQ:null,chain:Promise.resolve(),busy:false,acc:{}};
 const tn=t=>names[t]||('Team '+(t+1));
 const qKeyNow=()=>roundIndex+'-'+qIndex;
 try{home.cfg=JSON.parse(localStorage.getItem('rh_home')||'{}')||{}}catch(e){home.cfg={}}
@@ -686,11 +701,11 @@ const hk=()=>({p_room:home.cfg.code,p_key:home.cfg.hk});
 function hq(fn){home.chain=home.chain.then(fn).catch(e=>{home.err=e.message;homePaint()});return home.chain}
 function defLetters(a){a=String(a||'').trim().replace(/^[^A-Za-z0-9]+/,'');const out=[],m=a.match(/^(the|a|an)\s+(\S)/i);
  if(m){out.push(a[0].toUpperCase(),m[2].toUpperCase())}else if(/^[A-Za-z]/.test(a))out.push(a[0].toUpperCase());return out.filter(x=>/^[A-Z]$/.test(x)).map(x=>x==='Y'?'X':x)}
-function nextLabel(r){const last=qIndex>=r.questions.length-1;if(home.live&&!isVoidNow()){if(!home.kpShown)return 'SHOW KEYPAD';if(!home.qShown)return 'SHOW QUESTION';if(!revealed)return 'SHOW ANSWER';if(DESK&&!home.showRes)return 'SHOW RESULTS'}return last?'SCORES \u2192':'NEXT \u2192'}
+function nextLabel(r){const last=qIndex>=r.questions.length-1;if(home.live&&!isVoidNow()){if(!home.kpShown)return 'SHOW KEYPAD';if(!home.qShown)return 'SHOW QUESTION';if(!revealed)return 'SHOW ANSWER';if(DESK&&!home.showRes)return 'SHOW RESULTS';if(DESK&&home.cfg.breakdown!==false&&!home.showBrk)return 'SHOW BREAKDOWN'}return last?'SCORES \u2192':'NEXT \u2192'}
 function homeKpShow(){home.kpShown=true;hq(async()=>{await rpc('set_kpshow',{...hk(),p_show:true});homePoll()});render()}
 function toggleAnswer(){if(home.live&&view==='quiz'){if(!revealed){hostPeek=!hostPeek;render()}return}publicReveal()}
 function revealBtnLabel(){if(home.live)return revealed?'ANSWER SHOWN':hostPeek?'HIDE HOST ANSWER':'SHOW HOST ANSWER';return revealed?'HIDE ANSWER':'SHOW ANSWER'}
-function homeQShow(startTimer){home.kpShown=true;home.qShown=true;hq(async()=>{await rpc('set_kpshow',{...hk(),p_show:true});await rpc('set_qshow',{...hk(),p_show:true});homePoll()});
+function homeQShow(startTimer){if(home.cfg.autoLock===true&&!home.autoLockDone&&!(home.st&&home.st.locked)){home.autoLockDone=true;hq(async()=>{await rpc('set_locked',{...hk(),p_locked:true})})}home.kpShown=true;home.qShown=true;hq(async()=>{await rpc('set_kpshow',{...hk(),p_show:true});await rpc('set_qshow',{...hk(),p_show:true});homePoll()});
  if(startTimer){const ms=tmrMs();tm={s:'run',left:ms,end:Date.now()+ms};homeTimer()}
  if(hv.el&&hv.el.paused)hv.el.play().catch(()=>{});
  render()}
@@ -747,13 +762,13 @@ function homeReveal(){const qk=qKeyNow();hq(async()=>{if(home.openedQ!==qk){awai
  await rpc('reveal_question',hk());home.err='';homePoll()})}
 function homeAccEdit(){const k=qKeyNow(),v=prompt(...accPrompt());if(v===null)return;
  {const cq=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];home.acc[k]=qTypeOf(cq)==='sort'?(()=>{const n=(v.match(/\d+/g)||[]).map(x=>parseInt(x,10)-1),N=optsOf(cq).length;return n.length===N&&n.every(x=>x>=0&&x<N)&&new Set(n).size===N?[n.join(',')]:[]})():qTypeOf(cq)==='multisel'?(()=>{const n=[...new Set((v.match(/\d+/g)||[]).map(x=>parseInt(x,10)-1).filter(x=>x>=0&&x<optsOf(cq).length))].sort((a,b)=>a-b);return n.length?[n.join(',')]:[]})():qTypeOf(cq)==='multi'?((v.match(/\d+/)||[]).map(x=>String(parseInt(x,10)-1)).filter(x=>+x>=0&&+x<optsOf(cq).length)):qTypeOf(cq)==='number'?((v.match(/\d+/g)||[]).map(x=>String(parseInt(x,10)))):(v.toUpperCase().match(/[A-Z]/g)||[]).map(x=>x==='Y'?'X':x)}hq(async()=>{await rpc('open_question',{...hk(),p_qkey:k,p_correct:home.acc[k],...qInfo(k)});if(home.st&&home.st.state==='revealed'&&home.st.qkey===k)await rpc('reveal_question',hk());homePoll()})}
-async function homePoll(){if(!home.live||home.busy)return;home.busy=true;try{home.st=await rpc('host_state',hk());home.err='';home.voidQ=new Set(home.st.voided||[])}catch(e){home.err=e.message}home.busy=false;homePaint()}
+async function homePoll(){if(!home.live||home.busy)return;home.busy=true;try{home.st=await rpc('host_state',hk());home.err='';home.voidQ=new Set(home.st.voided||[])}catch(e){home.err=e.message}home.busy=false;homeExtras();homePaint()}
 setInterval(homePoll,1500);
 function homeBarInner(){if(!home.live)return'';if(home.err)return 'HOME: '+esc(home.err);const s=home.st;if(!s)return 'HOME: connecting\u2026';
  const acc=accNow(),a=acc.length?accShow(acc):'none \u2013 set one';
  let t=`HOME ${esc(home.cfg.code)} \u00b7 <b>${s.answered}</b>/${s.teams.length} answered \u00b7 ${homeConn(s)} online`;if(s.state==='revealed'&&s.qkey===qKeyNow())t+=` \u00b7 ${s.right} correct`;
  {const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex],z=qSet(q);t+=` \u00b7 ${Math.round(tmrMs()/1000)}s \u00b7 ${z.pts} pts (+${z.b1}/${z.b2}/${z.b3})`;const ev=qEvil(q);if(ev.kind!=='none')t+=` \u00b7 ${ev.kind==='really'?'REALLY EVIL':'EVIL'} \u2212${ev.pts}`}
- if(isVoidNow())t+=' \u00b7 <b>QUESTION VOID - NO POINTS SCORED</b>';else if(!home.kpShown)t+=' \u00b7 <b>KEYPAD AND QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';else if(!home.qShown)t+=' \u00b7 <b>QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';if(home.showRes)t+=' \u00b7 RESULTS ON OBS';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
+ if(isVoidNow())t+=' \u00b7 <b>QUESTION VOID - NO POINTS SCORED</b>';else if(!home.kpShown)t+=' \u00b7 <b>KEYPAD AND QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';else if(!home.qShown)t+=' \u00b7 <b>QUESTION HIDDEN FROM PLAYERS &amp; OBS</b>';if(home.showBrk)t+=' \u00b7 BREAKDOWN ON OBS';else if(home.showRes)t+=' \u00b7 RESULTS ON OBS';if(home.earlyKey===qKeyNow())t+=' \u00b7 <b>ALL IN - answering closed early</b>';return t+` \u00b7 accepts <b>${esc(a)}</b> <button type="button" onclick="homeAccEdit()">EDIT</button>`}
 function homeBarHTML(){return home.live&&view==='quiz'?`<div class="homebar" id="homebar">${homeBarInner()}</div>`:''}
 function chipInner(){const s=home.st;if(!home.live||!s||s.qkey!==qKeyNow())return'';
  if(s.state==='open'||s.state==='closed')return `HOME \u00b7 <b>${s.answered}</b> / ${s.teams.length} answered`;
@@ -820,9 +835,9 @@ function qrSVG(text){
 
 function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t.name)),link=playerLink(),qr=link?qrSVG(link):'',lg=(document.querySelector('.lgimg')||{}).src||'',addr=String(c.player||'').replace(/^https?:\/\//,'');
  return `<div class="st jn"><div class="jh">${lg?`<img class="jlg" src="${lg}" alt="">`:''}<div class="jt">${esc(quiz.title||'Quiz Night')}</div></div>
- <div class="jm"><div class="jleft"><div class="jk">PLAY AT HOME</div><div class="jcl">ROOM CODE</div><div class="jc">${esc(c.code||'')}</div><div class="ju">${esc(addr)}</div></div>${qr?`<div class="jqr">${qr}<div class="jqc">SCAN TO JOIN</div></div>`:''}</div>
+ <div class="jm"><div class="jleft"><div class="jk">PLAY AT HOME</div><div class="jcl">ROOM CODE</div><div class="jc">${esc(c.code||'')}</div><div class="ju">${esc(addr)}</div></div>${home.st&&home.st.locked?'<div class="jqr"><div class="jqc" style="font-size:calc(var(--u)*70)">JOINING CLOSED</div></div>':''}${qr&&!(home.st&&home.st.locked)?`<div class="jqr">${qr}<div class="jqc">SCAN TO JOIN</div></div>`:''}</div>
  <div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
-function obsHTML(jr){if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&isVoidNow())return voidHTML();if(home.live&&view==='quiz'&&!home.qShown&&!revealed)return holdHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
+function obsHTML(jr){if(ivEnd)return intervalHTML();if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&isVoidNow())return voidHTML();if(home.live&&view==='quiz'&&!home.qShown&&!revealed)return holdHTML();if(home.live&&view==='quiz'&&home.showBrk)return breakHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
 const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
 function homeTeamsHTML(){const s=home.st;let t=[...(s&&s.teams||[])];if(!t.length)return '<p class="note">No teams yet.</p>';
  const on=x=>x.seen!=null&&x.seen<=6,q=(home.tq||'').trim().toLowerCase(),so=home.tsort||'joined';
@@ -841,7 +856,7 @@ function homePaint(){const b=document.getElementById('homebar');if(b)b.innerHTML
  const m=document.getElementById('homeMsg');if(m&&home.err)m.textContent=home.err;
  const hs=document.getElementById('hstat');if(hs&&home.st)hs.textContent=home.st.teams.length+' teams \u00b7 '+home.st.answered+' answers on the current question';
  const hb=document.getElementById('homeBtn');if(hb)hb.classList.toggle('hot',home.live);
- if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if((obsScore&&obsScore.join)||home.showRes||obsLive)obsSync(false)}}
+ if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if((obsScore&&obsScore.join)||home.showRes||home.showBrk||obsLive)obsSync(false)}}
 function playerLink(){const c=home.cfg,p=c.player||'';return p?p+(p.includes('?')?'&':'?')+'r='+c.code:''}
 function homeStage(){
  if(view!=='quiz')return 'Not on a question';
@@ -853,12 +868,12 @@ function homeStage(){
  if(!home.showRes)return lab+' \u2014 answer shown';
  return lab+' \u2014 results shown'}
 function liveInfoHTML(){const s=home.st;if(!s)return '<p class="note">Connecting\u2026</p>';
- return `<div class="lvgrid"><div class="lvc"><b>${s.teams.length}</b><span>teams joined</span></div><div class="lvc"><b>${homeConn(s)}</b><span>connected now</span></div><div class="lvc"><b>${s.answered}</b><span>answered this question</span></div></div><p class="note" style="margin:8px 0 0"><b>Now:</b> ${esc(homeStage())}</p>`}
+ return `<div class="lvgrid"><div class="lvc"><b>${s.teams.length}</b><span>teams joined</span></div><div class="lvc"><b>${homeConn(s)}</b><span>connected now</span></div><div class="lvc"><b>${s.answered}</b><span>answered this question</span></div></div><p class="note" style="margin:8px 0 0"><b>Now:</b> ${esc(homeStage())}</p><p class="note" style="margin:2px 0 0"><b>Joining:</b> ${s.locked?'locked':'open'}${s.interval?' &middot; <b>interval running</b>':''}</p>`}
 async function homeCopyLink(){const u=playerLink();try{await navigator.clipboard.writeText(u);bzMsg('Player link copied.')}catch(e){bzMsg('Select the link and copy it.')}}
 function homeTq(v){home.tq=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
 function homeTsort(v){home.tsort=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
 function homeAdjTeam(id){closeHome();adj.kind='gift';adj.to=id;adj.from='';openAdj()}
-const DB_VERSION='2026-10-17';
+const DB_VERSION='2026-10-18';
 async function homeTestConn(){const el=document.getElementById('homeTest'),c=home.cfg;if(!el)return;
  if(!c.url||!c.key){el.innerHTML='<p class="tr bad">Enter the project URL and key first.</p>';return}
  el.innerHTML='<p class="note">Testing\u2026</p>';
@@ -868,7 +883,7 @@ async function homeTestConn(){const el=document.getElementById('homeTest'),c=hom
   ['submit_answer',{p_room:R,p_team:U,p_secret:U,p_letter:'A'}],['get_state',{p_room:R,p_team:null,p_secret:null}],['set_timer',{...P,p_state:'idle',p_left:0}],['set_phase',{...P,p_phase:'contents',p_info:{}}],
   ['set_qshow',{...P,p_show:true}],['set_kpshow',{...P,p_show:true}],['clear_answers',P],['clear_teams',P],['clear_question',{...P,p_qkey:'0-0'}],
   ['host_adjust',{...P,p_kind:'gift',p_from:null,p_to:U,p_pts:1,p_qkey:'0-0'}],['host_adjustments',P],['host_undo_adjust',{...P,p_pair:U}],
-  ['void_question',{...P,p_qkey:'0-0'}],['host_results',P],['unvoid_question',{...P,p_qkey:'0-0'}],['delete_room',P],['create_room',{p_code:null,p_key:null}]];
+  ['void_question',{...P,p_qkey:'0-0'}],['host_results',P],['set_locked',{...P,p_locked:false}],['set_interval',{...P,p_seconds:0}],['unvoid_question',{...P,p_qkey:'0-0'}],['delete_room',P],['create_room',{p_code:null,p_key:null}]];
  let unreachable=false,keyBad=false,ver=null;const missing=[];
  await Promise.all(probes.map(async([fn,args])=>{try{const r=await rpc(fn,args);if(fn==='app_version')ver=r}catch(e){const m=String(e.message||e);
    if(/Failed to fetch|NetworkError|Load failed/i.test(m))unreachable=true;else if(/Invalid API key|apikey|JWT/i.test(m))keyBad=true;else if(/Could not find the function|PGRST202/i.test(m))missing.push(fn)}}));
@@ -894,8 +909,10 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||(L?'live':'setup'
   <div id="liveInfo">${liveInfoHTML()}</div>
   <div class="hl" style="margin-top:14px">Quick actions</div>
   <div class="qa">${DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):''}<button class="close" onclick="closeHome();toggleLiveScores()">${obsLive?'Hide scores on OBS':'Scores on OBS'}</button><button class="close" onclick="closeHome();openAdj()">Adjust scores&hellip;</button><button class="close" onclick="homeClear('q')">Clear this question</button></div><label class="chk"><input type="checkbox" ${home.cfg.autoImport===false?'':'checked'} onchange="homeAutoSet(this.checked)"> Auto-import scores at the end of each round</label>
+  <label class="chk"><input type="checkbox" ${home.cfg.breakdown===false?'':'checked'} onchange="homeOpt('breakdown',this.checked)"> Add an answer breakdown step after the results</label>
+  <label class="chk"><input type="checkbox" ${home.cfg.earlyClose===true?'checked':''} onchange="homeOpt('earlyClose',this.checked)"> Close answering early once every connected team has answered</label>
   <div class="hl" style="margin-top:12px">Results</div><div class="qa"><button class="close" onclick="homeExportResults()">Results CSV (every answer)</button><button class="close" onclick="homeExportStandings()">Standings CSV</button></div></div>
-  <div class="lvr">${voidControls()}
+  <div class="lvr">${intervalControls()}${joinControls()}${voidControls()}
   <div class="dz"><div class="hl dzh">Danger zone</div>
   ${row("homeClear('all')",'Clear all answers and points','Starts the scoring from zero. Teams stay in the room.','danger')}
   ${row("homeClear('teams')",'Remove all teams','Everyone has to join again. The room code stays the same.','danger')}
@@ -950,7 +967,7 @@ async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg')
  if(!c.url||!c.key){m.textContent='Enter the project URL and key first.';return}
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
- homeSave();bzAssignLoad();home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='live';homeRender();homePoll();homeSync();render()}
+ homeSave();bzAssignLoad();home.autoLockDone=false;ivEnd=null;home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='live';homeRender();homePoll();homeSync();render()}
 async function homeStop(){await homeOfferExport();if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;home.tab='setup';homeRender();render()}
@@ -1090,12 +1107,12 @@ async function homeVoid(){const sel=document.getElementById('voidSel'),k=sel&&se
  if(!confirm('Void '+voidLabel(k)+'?\n\nEvery answer, bonus and penalty for it is wiped, and players see "Question void".'))return;
  try{await rpc('void_question',{...hk(),p_qkey:k})}catch(e){m.textContent=e.message;return}
  home.voidQ.add(k);
- if(view==='quiz'&&k===qKeyNow()){revealed=false;hostPeek=false;home.showRes=false;home.qShown=true;home.kpShown=true;tm={s:'idle',left:tmrMs(),end:0};homeTimer();if(hv.el)hv.el.pause();render()}
+ if(view==='quiz'&&k===qKeyNow()){revealed=false;hostPeek=false;home.showRes=false;home.showBrk=false;home.qShown=true;home.kpShown=true;tm={s:'idle',left:tmrMs(),end:0};homeTimer();if(hv.el)hv.el.pause();render()}
  await homePoll();render();homeRender();document.getElementById('homeMsg').textContent='Voided.'}
 async function homeUnvoid(k){const m=document.getElementById('homeMsg');
  try{await rpc('unvoid_question',{...hk(),p_qkey:k})}catch(e){m.textContent=e.message;return}
  home.voidQ.delete(k);
- if(view==='quiz'&&k===qKeyNow()){home.qShown=false;home.kpShown=false;revealed=false;home.showRes=false;render()}
+ if(view==='quiz'&&k===qKeyNow()){home.qShown=false;home.kpShown=false;revealed=false;home.showRes=false;home.showBrk=false;render()}
  await homePoll();render();homeRender();document.getElementById('homeMsg').textContent='Un-voided. That question will run again from Show keypad.'}
 /* ===== Results CSV ===== */
 const csvCell=v=>{v=v==null?'':String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
@@ -1128,6 +1145,38 @@ async function homeExportResults(){try{const d=await rpc('host_results',hk());cs
 async function homeExportStandings(){try{const d=await rpc('host_results',hk());csvDownload(csvName('standings'),buildStandingRows(d));bzMsg('Standings CSV downloaded.')}catch(e){bzMsg(e.message)}}
 async function homeExportAll(){try{const d=await rpc('host_results',hk());csvDownload(csvName('night-report'),[['STANDINGS'],...buildStandingRows(d),[],['ALL ANSWERS'],...buildResultRows(d)]);return true}catch(e){bzMsg(e.message);return false}}
 async function homeOfferExport(){if(confirm('Download the night\'s results before this room is deleted?\n\nOK = download one CSV with the standings and every answer.\nCancel = skip.'))await homeExportAll()}
+/* ===== Interval screen, lock joining, early close, answer breakdown ===== */
+let ivEnd=null,ecN=0;
+function homeOpt(k,v){home.cfg[k]=!!v;homeSave()}
+function ivText(){const rem=Math.max(0,ivEnd-Date.now()),m=Math.floor(rem/60000),s=Math.floor(rem%60000/1000);return rem<=0?'0:00':m+':'+String(s).padStart(2,'0')}
+function intervalHTML(){const lg=(document.querySelector('.lgimg')||{}).src||'',back=new Date(ivEnd).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+ return `<div class="st c">${lg?`<img class="jlg" src="${lg}" alt="">`:''}<div class="ivh">INTERVAL</div><div class="ivt" id="ivt">${ivText()}</div><div class="ivs" id="ivs">${ivEnd-Date.now()<=0?'STARTING SOON':'BACK AT '+esc(back)}</div></div>`}
+document.body.insertAdjacentHTML('beforeend','<div id="ivChip" style="display:none"><span id="ivChipT"></span><button type="button" onclick="homeIntervalEnd()">END</button></div>');
+function ivTick(){const chip=document.getElementById('ivChip');if(chip){chip.style.display=ivEnd?'flex':'none';const t=document.getElementById('ivChipT');if(t&&ivEnd)t.textContent='Interval running \u00b7 '+ivText()}
+ if(ivEnd&&obs&&!obs.closed){const e=obs.document.getElementById('ivt'),s=obs.document.getElementById('ivs');if(e)e.textContent=ivText();if(s&&ivEnd-Date.now()<=0)s.textContent='STARTING SOON'}}
+setInterval(ivTick,500);
+async function homeIntervalStart(){const m=Math.max(1,Math.min(180,Math.round(+(document.getElementById('ivMin')||{}).value||10)));
+ try{await rpc('set_interval',{...hk(),p_seconds:m*60})}catch(e){bzMsg(e.message);return}
+ ivEnd=Date.now()+m*60000;obsLast='';obsSync(false);ivTick();bzMsg('Interval started: '+m+' minute'+(m>1?'s':'')+'.')}
+async function homeIntervalEnd(){try{await rpc('set_interval',{...hk(),p_seconds:0})}catch(e){bzMsg(e.message)}ivEnd=null;obsLast='';obsSync(false);ivTick();if(!document.getElementById('homeModal').classList.contains('hidden'))homeRender()}
+function intervalControls(){return `<div class="cbk"><div class="hl">Interval screen</div><div class="ivrow"><input class="hin" id="ivMin" type="number" min="1" max="180" value="10"><span>minutes</span><button class="close" onclick="homeIntervalStart()">Start interval</button><button class="close" onclick="homeIntervalEnd()">End interval</button></div><span class="note">Shows "Interval" with a countdown on OBS and on every phone until you end it.</span></div>`}
+async function homeLock(v){try{await rpc('set_locked',{...hk(),p_locked:!!v})}catch(e){bzMsg(e.message);return}await homePoll();homeRender()}
+function joinControls(){const lk=!!(home.st&&home.st.locked);return `<div class="cbk"><div class="hl">Joining</div><div class="ivrow"><button class="close ${lk?'danger':''}" onclick="homeLock(${!lk})">${lk?'Unlock joining':'Lock joining'}</button><span><b>${lk?'Locked':'Open'}</b></span></div><label class="chk"><input type="checkbox" ${home.cfg.autoLock===true?'checked':''} onchange="homeOpt('autoLock',this.checked)"> Lock joining automatically when the first question is shown</label><span class="note">Teams already in the room can always rejoin on their own phone.</span></div>`}
+function homeExtras(){const s=home.st;if(!s)return;
+ if(s.interval&&!ivEnd)ivEnd=Date.now()+(+s.interval_left||0);else if(!s.interval&&ivEnd)ivEnd=null;
+ if(!home.live||home.cfg.earlyClose!==true||view!=='quiz'||revealed||!home.qShown||isVoidNow()||s.state!=='open'||s.qkey!==qKeyNow()){ecN=0;return}
+ const q=quiz.rounds[roundIndex].questions[qIndex];if(qTypeOf(q)==='multisel'){ecN=0;return}
+ const conn=s.teams.filter(t=>t.seen!=null&&t.seen<=6);if(!conn.length){ecN=0;return}
+ if(conn.every(t=>t.letter!=null)){if(++ecN>=2){ecN=0;home.earlyKey=qKeyNow();homeClose();tm={s:'done',left:0,end:0};homeTimer();tmrPaint();render()}}else ecN=0}
+function breakRows(){const s=home.st,q=quiz.rounds[roundIndex].questions[qIndex],t=qTypeOf(q),o=optsOf(q);if(!s)return{rows:[],more:0,none:0};
+ const T=s.teams,ans=T.filter(x=>x.letter!=null),none=T.length-ans.length,map=new Map();
+ ans.forEach(x=>{const k=String(x.letter),m=map.get(k)||{k,n:0,ok:false};m.n++;if(x.ok===true)m.ok=true;map.set(k,m)});
+ if(t==='multi')o.forEach((_,i)=>{if(!map.has(String(i)))map.set(String(i),{k:String(i),n:0,ok:false})});
+ const acc=accNow(),all=[...map.values()].map(m=>({label:csvAnsText(q,m.k)||m.k,n:m.n,ok:m.ok||acc.includes(m.k)})).sort((a,b)=>b.n-a.n||a.label.localeCompare(b.label));
+ return{rows:all.slice(0,8),more:all.slice(8).reduce((a,x)=>a+x.n,0),none}}
+function breakHTML(){const {rows,more,none}=breakRows(),q=quiz.rounds[roundIndex].questions[qIndex],mx=Math.max(1,...rows.map(r=>r.n));
+ return `<div class="st"><div class="rsT">What everyone said</div><div class="rsA">The answer: <b>${esc(q.answer||'')}</b></div><div class="bkG">${rows.map(r=>`<div class="bkR ${r.ok?'ok':''}"><span class="bkL">${r.ok?'\u2713 ':''}${esc(r.label)}</span><span class="bkB"><i style="width:${Math.round(100*r.n/mx)}%"></i></span><span class="bkN">${r.n}</span></div>`).join('')||'<div class="rsE">Nobody answered</div>'}</div><div class="bkF">${none} did not answer${more?' \u00b7 '+more+' more in other answers':''}</div></div>`}
+async function homeShowBreak(){try{home.st=await rpc('host_state',hk())}catch(e){home.err=e.message}home.showBrk=true;render();homePaint()}
 bzLoad();
 init();
 </script>
