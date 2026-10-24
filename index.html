@@ -255,6 +255,10 @@ button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px sol
 #ivChip{position:fixed;top:104px;left:50%;transform:translateX(-50%);z-index:60;align-items:center;gap:12px;background:#0b1f4d;border:2px solid #20C7D9;border-radius:999px;padding:6px 8px 6px 18px;color:#fff;font-weight:900;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
 #ivChip button{background:#20C7D9;color:#050505;border-radius:999px;padding:6px 16px;font-weight:900}
 .ivrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;color:#050505;font-weight:700}.ivrow .hin{width:5.5em;margin:0}
+.rhb{background:#fff4e0;border:2px solid #ff9f1a;border-radius:10px;padding:10px 12px;margin-bottom:12px;color:#050505}.rhb b{color:#b54708}.rhb .note{display:block;margin-top:4px}
+.rhrow{display:flex;flex-wrap:wrap;gap:8px 14px;margin:8px 0;font-size:12px;font-weight:700}.rhrow select{margin-left:4px;padding:3px}
+.tr.warn{color:#b54708}
+#homeBtn.reh{background:#ff9f1a !important;color:#050505 !important}
 </style>
 </head>
 <body>
@@ -741,7 +745,8 @@ function accPrompt(){const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].qu
  if(t==='multisel')return['Option numbers that must ALL be selected, e.g. 2,4,6 (1 to '+optsOf(q).length+')',a.length?a[0].split(',').map(i=>+i+1).join(','):''];
  if(t==='number')return['The whole number(s) that count as correct, separated by ;',a.join(';')];
  return['Letters that count as correct for this question (e.g. B or T,B)',a.join(',')]}
-function accNow(){const k=qKeyNow();if(home.acc[k])return home.acc[k];const q=quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex];if(qTypeOf(q)==='number'){return [...new Set(String(q.qanswer==null?'':q.qanswer).split(';').map(wholeOf).filter(x=>x!==''))]}
+function accNow(){const k=qKeyNow();if(home.acc[k])return home.acc[k];return accFor(quiz.rounds[roundIndex]&&quiz.rounds[roundIndex].questions[qIndex])}
+function accFor(q){if(qTypeOf(q)==='number'){return [...new Set(String(q.qanswer==null?'':q.qanswer).split(';').map(wholeOf).filter(x=>x!==''))]}
  if(qTypeOf(q)==='multisel'){const i=selIdx(q);return i.length?[i.join(',')]:[]}
  if(qTypeOf(q)==='sort'){const i=sortIdx(q);return i.length?[i.join(',')]:[]}
  if(qTypeOf(q)==='multi'){const i=multiIdx(q);return i<0?[]:[String(i)]}
@@ -835,7 +840,7 @@ function qrSVG(text){
 
 function joinHTML(){const c=home.cfg,n=(home.st&&home.st.teams||[]).map(t=>esc(t.name)),link=playerLink(),qr=link?qrSVG(link):'',lg=(document.querySelector('.lgimg')||{}).src||'',addr=String(c.player||'').replace(/^https?:\/\//,'');
  return `<div class="st jn"><div class="jh">${lg?`<img class="jlg" src="${lg}" alt="">`:''}<div class="jt">${esc(quiz.title||'Quiz Night')}</div></div>
- <div class="jm"><div class="jleft"><div class="jk">PLAY AT HOME</div><div class="jcl">ROOM CODE</div><div class="jc">${esc(c.code||'')}</div><div class="ju">${esc(addr)}</div></div>${home.st&&home.st.locked?'<div class="jqr"><div class="jqc" style="font-size:calc(var(--u)*70)">JOINING CLOSED</div></div>':''}${qr&&!(home.st&&home.st.locked)?`<div class="jqr">${qr}<div class="jqc">SCAN TO JOIN</div></div>`:''}</div>
+ <div class="jm"><div class="jleft"><div class="jk">PLAY AT HOME${home.cfg.rehearsal?' \u00b7 REHEARSAL':''}</div><div class="jcl">ROOM CODE</div><div class="jc">${esc(c.code||'')}</div><div class="ju">${esc(addr)}</div></div>${home.st&&home.st.locked?'<div class="jqr"><div class="jqc" style="font-size:calc(var(--u)*70)">JOINING CLOSED</div></div>':''}${qr&&!(home.st&&home.st.locked)?`<div class="jqr">${qr}<div class="jqc">SCAN TO JOIN</div></div>`:''}</div>
  <div class="jl">${n.length?n.join(' \u00b7 '):'Waiting for teams\u2026'}</div></div>`}
 function obsHTML(jr){if(ivEnd)return intervalHTML();if(obsLive)return liveBoardHTML();if(obsScore&&obsScore.join)return joinHTML();if(home.live&&view==='quiz'&&isVoidNow())return voidHTML();if(home.live&&view==='quiz'&&!home.qShown&&!revealed)return holdHTML();if(home.live&&view==='quiz'&&home.showBrk)return breakHTML();if(home.live&&view==='quiz'&&home.showRes)return resultsHTML();const h=obsHTML0(jr);return home.live&&view==='quiz'?h+homeChip():h}
 const homeConn=s=>s?s.teams.filter(t=>t.seen!=null&&t.seen<=6).length:0;
@@ -855,7 +860,7 @@ function homePaint(){const b=document.getElementById('homebar');if(b)b.innerHTML
  const t=document.getElementById('homeTeams');if(t){const h=homeTeamsHTML(),ae=document.activeElement;if(t.__h!==h&&!(ae&&t.contains(ae)&&ae.tagName==='SELECT')){t.innerHTML=h;t.__h=h}}const c=document.getElementById('hcount');if(c)c.textContent=home.st?homeConn(home.st)+' connected of '+home.st.teams.length+' joined':'';const li=document.getElementById('liveInfo');if(li)li.innerHTML=liveInfoHTML();
  const m=document.getElementById('homeMsg');if(m&&home.err)m.textContent=home.err;
  const hs=document.getElementById('hstat');if(hs&&home.st)hs.textContent=home.st.teams.length+' teams \u00b7 '+home.st.answered+' answers on the current question';
- const hb=document.getElementById('homeBtn');if(hb)hb.classList.toggle('hot',home.live);
+ const hb=document.getElementById('homeBtn');if(hb){hb.classList.toggle('hot',home.live);hb.classList.toggle('reh',!!(home.live&&home.cfg.rehearsal))}const bi=document.getElementById('botInfo');if(bi)bi.textContent=bots.list.length+' practice team'+(bots.list.length==1?'':'s')+' in the room'+(bots.on?'':' (paused)');
  if(obs&&!obs.closed){const h=obs.document.getElementById('hm');if(h)h.innerHTML=chipInner();if((obsScore&&obsScore.join)||home.showRes||home.showBrk||obsLive)obsSync(false)}}
 function playerLink(){const c=home.cfg,p=c.player||'';return p?p+(p.includes('?')?'&':'?')+'r='+c.code:''}
 function homeStage(){
@@ -874,9 +879,8 @@ function homeTq(v){home.tq=v;const t=document.getElementById('homeTeams');if(t)t
 function homeTsort(v){home.tsort=v;const t=document.getElementById('homeTeams');if(t)t.__h='';homePaint()}
 function homeAdjTeam(id){closeHome();adj.kind='gift';adj.to=id;adj.from='';openAdj()}
 const DB_VERSION='2026-10-18';
-async function homeTestConn(){const el=document.getElementById('homeTest'),c=home.cfg;if(!el)return;
- if(!c.url||!c.key){el.innerHTML='<p class="tr bad">Enter the project URL and key first.</p>';return}
- el.innerHTML='<p class="note">Testing\u2026</p>';
+async function connChecks(){const c=home.cfg,out=[],ln=(ok,t)=>out.push({ok,t});
+ if(!c.url||!c.key){ln(false,'Enter the Supabase project URL and key (Setup tab).');return out}
  const U='00000000-0000-0000-0000-000000000000',R='ZZZZ',K='x',P={p_room:R,p_key:K};
  const probes=[['app_version',{}],['open_question',{...P,p_qkey:'0-0',p_correct:[],p_question:null,p_answer:null,p_points:5,p_b1:3,p_b2:2,p_b3:1,p_qtype:'letter',p_options:null,p_evil_kind:'none',p_penalty:0,p_fast:false}],
   ['set_state',{...P,p_state:'idle'}],['reveal_question',P],['host_state',P],['host_rounds',P],['host_team',{...P,p_team:U,p_name:null}],['join_team',{p_room:R,p_name:'test'}],
@@ -887,28 +891,29 @@ async function homeTestConn(){const el=document.getElementById('homeTest'),c=hom
  let unreachable=false,keyBad=false,ver=null;const missing=[];
  await Promise.all(probes.map(async([fn,args])=>{try{const r=await rpc(fn,args);if(fn==='app_version')ver=r}catch(e){const m=String(e.message||e);
    if(/Failed to fetch|NetworkError|Load failed/i.test(m))unreachable=true;else if(/Invalid API key|apikey|JWT/i.test(m))keyBad=true;else if(/Could not find the function|PGRST202/i.test(m))missing.push(fn)}}));
- const line=(ok,t)=>`<p class="tr ${ok?'ok':'bad'}">${ok?'\u2713':'\u2717'} ${t}</p>`;let h='';
- if(unreachable)h=line(false,'Could not reach Supabase. Check the project URL and your internet connection.');
- else if(keyBad)h=line(false,'Supabase rejected the key. Check the anon / publishable key.');
- else{h=line(true,'Connected to Supabase');
-  if(missing.includes('app_version'))h+=line(false,'The database has no version marker, so it is out of date. Run supabase-setup.sql again.');
-  else h+=line(ver===DB_VERSION,ver===DB_VERSION?'Database version matches this page ('+esc(ver)+')':'Database version is '+esc(ver)+' but this page expects '+DB_VERSION+'. Run the latest supabase-setup.sql.');
+ if(unreachable)ln(false,'Could not reach Supabase. Check the project URL and your internet connection.');
+ else if(keyBad)ln(false,'Supabase rejected the key. Check the anon / publishable key.');
+ else{ln(true,'Connected to Supabase');
+  if(missing.includes('app_version'))ln(false,'The database has no version marker, so it is out of date. Run supabase-setup.sql again.');
+  else ln(ver===DB_VERSION,ver===DB_VERSION?'Database version matches this page ('+esc(ver)+')':'Database version is '+esc(ver)+' but this page expects '+DB_VERSION+'. Run the latest supabase-setup.sql.');
   const miss=missing.filter(x=>x!=='app_version');
-  h+=line(!miss.length,miss.length?'Missing functions: '+esc(miss.join(', '))+'. Run supabase-setup.sql again.':'All '+(probes.length-1)+' functions are present');
-  if(home.live){try{await rpc('host_state',hk());h+=line(true,'Room '+esc(c.code)+' is running')}catch(e){h+=line(false,'Room '+esc(c.code)+': '+esc(e.message))}}}
- el.innerHTML=h}
+  ln(!miss.length,miss.length?'Missing functions: '+esc(miss.join(', '))+'. Run supabase-setup.sql again.':'All '+(probes.length-1)+' functions are present');
+  if(home.live){try{await rpc('host_state',hk());ln(true,'Room '+esc(c.code)+' is running')}catch(e){ln(false,'Room '+esc(c.code)+': '+esc(e.message))}}}
+ return out}
+async function homeTestConn(){const el=document.getElementById('homeTest');if(!el)return;el.innerHTML='<p class="note">Testing\u2026</p>';
+ const r=await connChecks();el.innerHTML=r.map(x=>`<p class="tr ${x.ok?'ok':'bad'}">${x.ok?'\u2713':'\u2717'} ${x.t}</p>`).join('')}
 function homeRender(){const c=home.cfg,L=home.live,t=home.tab||(L?'live':'setup'),tb=(id,l)=>`<button class="htab ${t===id?'on':''}" onclick="homeTab('${id}')">${l}</button>`;
- const tabs=`<div class="htabs">${tb('live','Live')}${tb('players','Teams')}${tb('sounds','Sounds')}${tb('setup','Setup')}${tb('bingo','Bingo')}</div>`;
+ const tabs=`<div class="htabs">${tb('live','Live')}${tb('check','Check')}${tb('players','Teams')}${tb('sounds','Sounds')}${tb('setup','Setup')}${tb('bingo','Bingo')}</div>`;
  const row=(fn,label,desc,cls)=>`<div class="cbk"><button class="close ${cls||''}" onclick="${fn}">${label}</button><span class="note">${desc}</span></div>`;
  const noRoom='<p class="note" style="margin-top:0">No room is running. Go to the Setup tab and press Start room.</p>';
  let body;
  if(t==='live'){
   body=!L?noRoom+'<div class="modal-actions" style="justify-content:flex-start"><button class="close" onclick="homeTab(\'setup\')">Go to Setup</button></div>':
-  `<div class="lvcols"><div class="lvl"><div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div>
+  `<div class="lvcols"><div class="lvl">${rehearsalBox()}<div class="hl">Room code</div><div class="hroom">${esc(c.code)}</div>
   <div class="hl">Player link</div><div class="lvlink"><input class="hin" readonly value="${esc(playerLink())}" onclick="this.select()"><button class="close" onclick="homeCopyLink()">Copy</button></div>
   <div id="liveInfo">${liveInfoHTML()}</div>
   <div class="hl" style="margin-top:14px">Quick actions</div>
-  <div class="qa">${DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):''}<button class="close" onclick="closeHome();toggleLiveScores()">${obsLive?'Hide scores on OBS':'Scores on OBS'}</button><button class="close" onclick="closeHome();openAdj()">Adjust scores&hellip;</button><button class="close" onclick="homeClear('q')">Clear this question</button></div><label class="chk"><input type="checkbox" ${home.cfg.autoImport===false?'':'checked'} onchange="homeAutoSet(this.checked)"> Auto-import scores at the end of each round</label>
+  <div class="qa">${DESK?(joinOn()?`<button class="close" onclick="homeHideJoin()">Hide join screen</button>`:`<button class="close" onclick="homeShowJoin()">Show join screen on OBS</button>`):''}<button class="close" onclick="closeHome();toggleLiveScores()">${obsLive?'Hide scores on OBS':'Scores on OBS'}</button><button class="close" onclick="closeHome();openAdj()">Adjust scores&hellip;</button><button class="close" onclick="homeClear('q')">Clear this question</button><button class="close" onclick="homeTab('check')">Ready to go? checks</button></div><label class="chk"><input type="checkbox" ${home.cfg.autoImport===false?'':'checked'} onchange="homeAutoSet(this.checked)"> Auto-import scores at the end of each round</label>
   <label class="chk"><input type="checkbox" ${home.cfg.breakdown===false?'':'checked'} onchange="homeOpt('breakdown',this.checked)"> Add an answer breakdown step after the results</label>
   <label class="chk"><input type="checkbox" ${home.cfg.earlyClose===true?'checked':''} onchange="homeOpt('earlyClose',this.checked)"> Close answering early once every connected team has answered</label>
   <div class="hl" style="margin-top:12px">Results</div><div class="qa"><button class="close" onclick="homeExportResults()">Results CSV (every answer)</button><button class="close" onclick="homeExportStandings()">Standings CSV</button></div></div>
@@ -919,6 +924,8 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||(L?'live':'setup'
   ${row("homeNewRoom()",'Start a new room','Deletes this room and creates a fresh one with a new code.','danger')}
   ${row("homeStop()",'Stop &amp; delete room','Ends home play and deletes the room, its teams and its points.','danger')}
   ${row("resetProgress()",'Reset quiz progress and scores','This device only: clears the Scores slide, imported team names and which questions are done.','danger')}</div></div></div>`;
+ }else if(t==='check'){
+  body=`<p class="note" style="margin-top:0">Checks everything before you start. Green is fine, amber is worth a look, red needs fixing.</p><div class="modal-actions" style="justify-content:flex-start"><button class="close" onclick="homeCheckRun()">Run checks</button></div><div id="homeCheck" style="margin-top:8px">${home.checkHTML||''}</div>`;
  }else if(t==='players'){
   const so=home.tsort||'joined',op=(v,l)=>`<option value="${v}" ${so===v?'selected':''}>${l}</option>`;
   body=L?`<div class="tctl"><input class="hin tq" id="tq" placeholder="Search teams&hellip;" value="${esc(home.tq||'')}" oninput="homeTq(this.value)"><select class="hin tsort" onchange="homeTsort(this.value)">${op('joined','Joined order')}${op('name','Name')}${op('points','Points')}${op('conn','Connection')}</select></div>
@@ -938,14 +945,14 @@ function homeRender(){const c=home.cfg,L=home.live,t=home.tab||(L?'live':'setup'
  <div class="hl">Supabase project URL</div><input class="hin" value="${esc(c.url||'')}" placeholder="https://xxxx.supabase.co" onchange="homeField('url',this.value)">
  <div class="hl">Anon / publishable key</div><input class="hin" value="${esc(c.key||'')}" onchange="homeField('key',this.value)">
  <div class="hl">Player page address</div><input class="hin" value="${esc(c.player||'')}" placeholder="https://your-site/player.html" onchange="homeField('player',this.value)">
- <div class="modal-actions" style="justify-content:flex-start;gap:6px">${L?'':`<button class="close" onclick="homeStart()">Start room</button>`}<button class="close" onclick="homeTestConn()">Test connection</button></div>
+ <div class="modal-actions" style="justify-content:flex-start;gap:6px">${L?'':`<button class="close" onclick="homeStart()">Start room</button><button class="close" onclick="homeStart(true)" title="A practice room with pretend teams">Start rehearsal</button>`}<button class="close" onclick="homeTestConn()">Test connection</button></div>
  <div id="homeTest" style="margin-top:8px"></div>${L?`<p class="note">Room <b>${esc(c.code)}</b> is running. Everything you need during the quiz is on the Live tab.</p>`:''}`;
  }
  document.getElementById('homeBody').innerHTML=`<h2>Play at home</h2>${tabs}${body}<div class="note" id="homeMsg"></div>`;homePaint()}
 function bingoOpen(){const u=String(home.cfg.bingo||'').trim();if(!u){bzMsg('Enter the bingo host page address first.');return}window.open(u,'_blank','noopener')}
 async function bingoCopy(){const u=String(home.cfg.bingo||'').trim();if(!u){bzMsg('Enter the bingo host page address first.');return}
  try{await navigator.clipboard.writeText(u);bzMsg('Link copied.')}catch(e){const i=document.createElement('input');i.value=u;document.body.appendChild(i);i.select();try{document.execCommand('copy');bzMsg('Link copied.')}catch(e2){bzMsg('Could not copy - select the link above and copy it.')}i.remove()}}
-function homeTab(t){home.tab=t;homeRender()}
+function homeTab(t){home.tab=t;homeRender();if(t==='check')setTimeout(homeCheckRun,40)}
 async function homeClear(kind){
  const msg={q:'Clear the answers for this question?',all:'Clear ALL answers and points for every team? Teams stay in the room.',teams:'Remove every team from the room? They will need to rejoin.'}[kind],m=document.getElementById('homeMsg');
  if(kind==='q'&&view!=='quiz'){m.textContent='Open a question on the host first.';return}
@@ -957,20 +964,20 @@ async function homeClear(kind){
  }catch(e){m.textContent=e.message;return}
  revealed=false;home.err='';home.openedQ=kind==='q'?qKeyNow():null;if(kind==='q')tm={s:'run',left:tmrMs(),end:Date.now()+tmrMs()};m.textContent='Done.';
  renderRounds();render();if(kind!=='q')homeSync();homeTimer();homePoll()}
-async function homeNewRoom(){await homeOfferExport();if(!confirm('Delete this room and start a new one with a new code?'))return;
+async function homeNewRoom(){if(!home.cfg.rehearsal)await homeOfferExport();if(!confirm('Delete this room and start a new one with a new code?'))return;
  try{await rpc('delete_room',hk())}catch(e){}
  home.cfg.code='';home.cfg.hk='';home.live=false;home.st=null;home.openedQ=null;home.acc={};home.tab='setup';await homeStart()}
 function homeField(k,v){home.cfg[k]=String(v).trim();homeSave()}
 function openHome(){if(!DESK)return;if(!home.tab)home.tab=home.live?'live':'setup';homeRender();document.getElementById('homeModal').classList.remove('hidden');homePoll()}
 function closeHome(){document.getElementById('homeModal').classList.add('hidden')}
-async function homeStart(){const c=home.cfg,m=document.getElementById('homeMsg');
+async function homeStart(reh){const c=home.cfg,m=document.getElementById('homeMsg');
  if(!c.url||!c.key){m.textContent='Enter the project URL and key first.';return}
  if(!c.code){c.code=Array.from({length:4},()=>'BCDFGHJKLMNPQRSTVWXZ'[Math.floor(Math.random()*20)]).join('');c.hk=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())}
  try{await rpc('create_room',{p_code:c.code,p_key:c.hk})}catch(e){m.textContent=e.message;c.code='';c.hk='';return}
- homeSave();bzAssignLoad();home.autoLockDone=false;ivEnd=null;home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='live';homeRender();homePoll();homeSync();render()}
-async function homeStop(){await homeOfferExport();if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
+ c.rehearsal=reh===true;homeSave();bzAssignLoad();home.autoLockDone=false;ivEnd=null;home.live=true;home.err='';home.openedQ=null;home.acc={};home.st=null;home.tab='live';homeRender();homePoll();homeSync();render();if(reh===true){bots.list=[];botsSave();await botsAdd(bots.cfg.n)}}
+async function homeStop(){if(!home.cfg.rehearsal)await homeOfferExport();if(!confirm('Stop the room? Teams and their points will be deleted.'))return;
  try{await rpc('delete_room',hk())}catch(e){}
- home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;home.tab='setup';homeRender();render()}
+ botsStop();bots.list=[];home.cfg.rehearsal=false;home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;home.tab='setup';homeRender();render()}
 function homeTeam(id,ren){let name=null;if(ren){name=prompt('New team name');if(name==null||!name.trim())return}else if(!confirm('Remove this team?'))return;
  hq(async()=>{await rpc('host_team',{...hk(),p_team:id,p_name:name});homePoll()})}
 const joinOn=()=>!!(obsScore&&obsScore.join&&obs&&!obs.closed);
@@ -1177,6 +1184,68 @@ function breakRows(){const s=home.st,q=quiz.rounds[roundIndex].questions[qIndex]
 function breakHTML(){const {rows,more,none}=breakRows(),q=quiz.rounds[roundIndex].questions[qIndex],mx=Math.max(1,...rows.map(r=>r.n));
  return `<div class="st"><div class="rsT">What everyone said</div><div class="rsA">The answer: <b>${esc(q.answer||'')}</b></div><div class="bkG">${rows.map(r=>`<div class="bkR ${r.ok?'ok':''}"><span class="bkL">${r.ok?'\u2713 ':''}${esc(r.label)}</span><span class="bkB"><i style="width:${Math.round(100*r.n/mx)}%"></i></span><span class="bkN">${r.n}</span></div>`).join('')||'<div class="rsE">Nobody answered</div>'}</div><div class="bkF">${none} did not answer${more?' \u00b7 '+more+' more in other answers':''}</div></div>`}
 async function homeShowBreak(){try{home.st=await rpc('host_state',hk())}catch(e){home.err=e.message}home.showBrk=true;render();homePaint()}
+/* ===== Rehearsal mode (practice room with pretend teams) and the Ready-to-go check ===== */
+const bots={list:[],on:true,timer:0,busy:false,cfg:{n:8,acc:70,speed:'normal',silent:8}};
+const BOT_NAMES=['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo','Sierra','Tango','Uniform','Victor','Whiskey','Xray','Yankee','Zulu'];
+const botKey=()=>'rh_bots_'+(home.cfg.code||'');
+function botsSave(){try{localStorage.setItem(botKey(),JSON.stringify({list:bots.list,cfg:bots.cfg}))}catch(e){}}
+function botsLoad(){try{const v=JSON.parse(localStorage.getItem(botKey())||'null');if(v){bots.list=v.list||[];Object.assign(bots.cfg,v.cfg||{})}else bots.list=[]}catch(e){bots.list=[]}}
+function botsCfg(k,v){bots.cfg[k]=k==='speed'?v:+v;botsSave()}
+async function botsAdd(n){for(let i=0;i<n&&bots.list.length<30;i++){const name='Bot '+(BOT_NAMES[bots.list.length]||('No '+(bots.list.length+1)));
+  try{const r=await rpc('join_team',{p_room:home.cfg.code,p_name:name});bots.list.push({name:r.name,id:r.id,secret:r.secret,qkey:null})}catch(e){bzMsg(e.message);break}}
+ botsSave();botsEnsure();homePoll();homePaint()}
+async function botsRemoveAll(){for(const b of bots.list){try{await rpc('host_team',{...hk(),p_team:b.id,p_name:null})}catch(e){}}bots.list=[];botsSave();await homePoll();homePaint()}
+function botsEnsure(){if(!bots.timer)bots.timer=setInterval(botsTick,1500)}
+function botsStop(){clearInterval(bots.timer);bots.timer=0;try{localStorage.removeItem(botKey())}catch(e){}}
+async function botsTick(){if(!home.live||!home.cfg.rehearsal||!bots.on||bots.busy||!bots.list.length)return;bots.busy=true;try{await Promise.all(bots.list.map(botStep))}catch(e){}bots.busy=false}
+async function botStep(b){let s;try{s=await rpc('get_state',{p_room:home.cfg.code,p_team:b.id,p_secret:b.secret})}catch(e){return}
+ if((s.me&&s.me.valid===false)||s.state!=='open'||s.kphidden||s.qhidden||s.void||s.interval||!s.qkey||b.qkey===s.qkey)return;
+ b.qkey=s.qkey;if(s.me&&s.me.letter)return;
+ const f=qByKey(s.qkey);if(!f)return;const C=bots.cfg;if(Math.random()*100<C.silent)return;
+ const sp={fast:[800,4000],normal:[1500,8000],slow:[3000,14000]}[C.speed]||[1500,8000];
+ setTimeout(()=>botAnswer(b,f.q,s.qkey,Math.random()*100<C.acc),sp[0]+Math.random()*(sp[1]-sp[0]))}
+async function botAnswer(b,q,qk,correct){const code=home.cfg.code;let s2;try{s2=await rpc('get_state',{p_room:code,p_team:b.id,p_secret:b.secret})}catch(e){return}
+ if(s2.qkey!==qk||s2.state!=='open')return;
+ const t=qTypeOf(q),o=optsOf(q),acc=accFor(q),rnd=n=>Math.floor(Math.random()*n),send=v=>rpc('submit_answer',{p_room:code,p_team:b.id,p_secret:b.secret,p_letter:String(v)}).catch(()=>{});
+ if(t==='letter'){const L='ABCDEFGHIJKLMNOPQRSTUVWXZ';let v;if(correct&&acc.length)v=acc[rnd(acc.length)];else{do v=L[rnd(L.length)];while(acc.includes(v))}await send(v)}
+ else if(t==='number'){let v;if(correct&&acc.length)v=acc[rnd(acc.length)];else{const base=parseInt(acc[0]||'0',10);do v=String(Math.max(0,base+rnd(19)-9));while(acc.includes(v))}await send(v)}
+ else if(t==='multi'){const idx=o.map((_,i)=>String(i)),w=idx.filter(i=>!acc.includes(i));await send(correct&&acc.length?acc[0]:(w.length?w[rnd(w.length)]:idx[0]))}
+ else if(t==='sort'){const n=o.length;let v;if(correct&&acc.length)v=acc[0];else{const a=[...Array(n).keys()];let g=0;do{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}v=a.join(',')}while(acc.includes(v)&&n>1&&++g<20)}await send(v)}
+ else if(t==='multisel'){const right=acc.length?acc[0].split(','):[],wrong=o.map((_,i)=>String(i)).filter(i=>!right.includes(i));let picks=right.slice();
+  if(!(correct&&acc.length)){if(wrong.length&&Math.random()<.6)picks.push(wrong[rnd(wrong.length)]);else if(picks.length>1)picks.pop();else if(wrong.length)picks=[wrong[0]]}
+  for(const i of picks){await send(i);await new Promise(r=>setTimeout(r,300+rnd(500)))}}}
+function rehearsalBox(){if(!home.cfg.rehearsal)return '';const C=bots.cfg,op=(k,v,l)=>`<option value="${v}" ${String(C[k])===String(v)?'selected':''}>${l}</option>`;
+ return `<div class="rhb"><b>REHEARSAL ROOM</b> &mdash; a practice room with pretend teams. Nothing here is a real result.
+ <div class="rhrow"><label>Teams <select onchange="botsCfg('n',this.value)">${[4,6,8,12,16,24,30].map(n=>op('n',n,n)).join('')}</select></label><label>Correct <select onchange="botsCfg('acc',this.value)">${[100,85,70,50,25,0].map(n=>op('acc',n,n+'%')).join('')}</select></label><label>Speed <select onchange="botsCfg('speed',this.value)">${op('speed','fast','Fast')}${op('speed','normal','Normal')}${op('speed','slow','Slow')}</select></label><label>Silent <select onchange="botsCfg('silent',this.value)">${[0,8,20,40].map(n=>op('silent',n,n+'%')).join('')}</select></label></div>
+ <div class="qa"><button class="close" onclick="botsAdd(Math.max(0,bots.cfg.n-bots.list.length))">Fill to this many teams</button><button class="close" onclick="bots.on=!bots.on;homeRender()">${bots.on?'Pause the teams':'Resume the teams'}</button><button class="close" onclick="botsRemoveAll()">Remove practice teams</button><button class="close danger" onclick="homeEndRehearsal()">End rehearsal</button></div>
+ <span class="note" id="botInfo">${bots.list.length} practice teams in the room${bots.on?'':' (paused)'}</span><span class="note">Real phones can join this room too (join screen or player link). Pretend teams answer like phones do, through the real server.</span></div>`}
+async function homeEndRehearsal(){if(!confirm('End the rehearsal? The practice room and its teams are deleted.'))return;botsStop();bots.list=[];try{await rpc('delete_room',hk())}catch(e){}
+ home.cfg.rehearsal=false;home.cfg.code='';home.cfg.hk='';homeSave();home.live=false;home.st=null;home.openedQ=null;home.tab='setup';homeRender();render()}
+function questionProblems(){const out=[],M=quiz.media||{};
+ quiz.rounds.forEach(r=>r.questions.forEach((q,qi)=>{const lab='Round '+r.number+' Q'+(q.number||qi+1),raw=String(q.qtype||'').toLowerCase(),t=qTypeOf(q),acc=accFor(q);
+  if(['multi','multiselect','multisel','sort'].includes(raw)&&t==='letter')out.push(lab+': '+raw+' needs 2 to 6 options in QMulti, so it falls back to a letter question.');
+  else if(!acc.length)out.push(lab+': nothing counts as correct ('+(t==='letter'?'no letter to match, set QAnswer':t==='number'?'QAnswer is not a whole number':'QAnswer does not match the options')+').');
+  if(q.image&&!M[q.image])out.push(lab+': the picture or video "'+q.image+'" is not in the quiz file.')}));return out}
+async function homeCheckRun(){const el=document.getElementById('homeCheck');if(el)el.innerHTML='<p class="note">Checking\u2026</p>';
+ const L=[],add=(lv,t)=>L.push([lv,t]),c=home.cfg;
+ (await connChecks()).filter(x=>!/^Room /.test(x.t)).forEach(x=>add(x.ok?'ok':'bad',x.t));
+ if(home.live)await homePoll();
+ add(home.live?'ok':'bad',home.live?(c.rehearsal?'Rehearsal room '+esc(c.code)+' is running':'Room '+esc(c.code)+' is running'):'No room is running (Setup tab, Start room).');
+ const nq=quiz.rounds.reduce((a,r)=>a+r.questions.length,0),dummy=quiz.title==='RumHam Dummy Test Quiz';
+ add(dummy?'warn':'ok',dummy?'The built-in test quiz is loaded. Import your own .rqz (IMPORT QUIZ).':'Quiz "'+esc(quiz.title)+'" is loaded: '+quiz.rounds.length+' rounds, '+nq+' questions');
+ const pr=questionProblems();pr.slice(0,8).forEach(x=>add('warn',esc(x)));if(pr.length>8)add('warn','...and '+(pr.length-8)+' more question problems.');if(!pr.length)add('ok','Every question has a valid answer set');
+ add(obs&&!obs.closed?'ok':'warn',obs&&!obs.closed?'The OBS window is open':'The OBS window is not open (press OBS SCREEN).');
+ const nb=bzNames().length,wo=bz.lib.some(f=>/^system_wipeout(\.|$)/i.test(f.name)),T=(home.st&&home.st.teams)||[];
+ add(nb?'ok':'warn',nb?nb+' buzzer sound'+(nb==1?'':'s')+' loaded':'No buzzer sounds loaded (optional, Sounds tab).');
+ add(wo?'ok':'warn',wo?'System_WipeOut is loaded':'System_WipeOut is missing, so nobody-correct questions will be silent.');
+ if(home.live){add(T.length?'ok':'warn',T.length?T.length+' team'+(T.length==1?'':'s')+' joined, '+homeConn(home.st)+' connected':'No teams have joined yet.');
+  const nobz=nb?T.filter(t=>!bz.assign[t.id]).length:0;if(nobz)add('warn',nobz+' of '+T.length+' teams have no buzzer assigned.');
+  add('ok','Joining is '+(home.st&&home.st.locked?'locked':'open'))}
+ add(c.player?'ok':'warn',c.player?'Player page address is set':'No player page address is set (Setup tab).');
+ const bad=L.filter(x=>x[0]==='bad').length,warn=L.filter(x=>x[0]==='warn').length,ic={ok:'\u2713',warn:'\u26A0',bad:'\u2717'};
+ const head=bad?`<p class="tr bad" style="font-size:16px">\u2717 Not ready: ${bad} thing${bad>1?'s':''} to fix</p>`:warn?`<p class="tr warn" style="font-size:16px">\u26A0 Nearly ready: ${warn} thing${warn>1?'s':''} worth a look</p>`:'<p class="tr ok" style="font-size:16px">\u2713 Ready to go</p>';
+ home.checkHTML=head+L.map(x=>`<p class="tr ${x[0]}">${ic[x[0]]} ${x[1]}</p>`).join('');const e2=document.getElementById('homeCheck');if(e2)e2.innerHTML=home.checkHTML}
+if(home.live&&home.cfg.rehearsal){botsLoad();botsEnsure()}
 bzLoad();
 init();
 </script>
