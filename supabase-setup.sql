@@ -214,6 +214,9 @@ begin
     update rooms set state = 'idle' where code = upper(btrim(p_room));
   elsif p_state = 'closed' then
     update rooms set state = 'closed' where code = upper(btrim(p_room)) and state = 'open';
+  elsif p_state = 'open' then
+    -- used by Undo step: reopens a question that was closed but not yet revealed
+    update rooms set state = 'open' where code = upper(btrim(p_room)) and state = 'closed' and not (qkey = any(done));
   else
     raise exception 'Bad state';
   end if;
@@ -601,7 +604,7 @@ end $$;
 
 -- ---------- version marker (the Test connection button compares this with the host page) ----------
 create or replace function app_version() returns text
-language sql immutable as $$ select '2026-10-18'::text $$;
+language sql immutable as $$ select '2026-10-19'::text $$;
 
 -- ---------- everything that happened, for the results CSV ----------
 create or replace function host_results(p_room text, p_key text) returns json
@@ -640,4 +643,21 @@ begin
   perform _chk(p_room, p_key);
   update rooms set interval_end = case when coalesce(p_seconds, 0) > 0 then clock_timestamp() + (p_seconds * interval '1 second') end
    where code = upper(btrim(p_room));
+end $$;
+
+-- ---------- undo the reveal (the host's "Undo step" from Show answer back to Show question) ----------
+-- Takes back the scoring for the question on screen: points, speed bonuses, Evil penalties and any fast-track lift.
+-- Answers stay locked (state closed) so nobody can answer after seeing the result. Revealing again scores it again.
+create or replace function unreveal_question(p_room text, p_key text) returns void
+language plpgsql security definer set search_path = public as $$
+declare r rooms;
+begin
+  perform _chk(p_room, p_key);
+  select * into r from rooms where code = upper(btrim(p_room));
+  if r.qkey is null then raise exception 'No question is open'; end if;
+  if r.qkey = any(r.voided) then raise exception 'This question has been voided'; end if;
+  delete from answers where room = r.code and qkey = r.qkey and blank;
+  update answers set correct = null, bonus = 0, points = 0 where room = r.code and qkey = r.qkey;
+  delete from adjustments where room = r.code and qkey = r.qkey and kind = 'fasttrack';
+  update rooms set state = 'closed', done = array_remove(done, r.qkey) where code = r.code;
 end $$;
